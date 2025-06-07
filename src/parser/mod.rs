@@ -23,10 +23,14 @@ impl FileParser {
 
     pub fn parse_file(&self, file_path: &str, source_text: &str) -> Result<Vec<ClassMatch>> {
         let source_type = self.detect_source_type(file_path);
-        self.parse_source(source_text, source_type)
+        self.parse_source_with_path(source_text, source_type, file_path)
     }
 
     pub fn parse_source(&self, source_text: &str, source_type: SourceType) -> Result<Vec<ClassMatch>> {
+        self.parse_source_with_path(source_text, source_type, "unknown")
+    }
+    
+    pub fn parse_source_with_path(&self, source_text: &str, source_type: SourceType, file_path: &str) -> Result<Vec<ClassMatch>> {
         // Wrap incomplete JSX in a component for parsing
         let (wrapped_source, offset) = self.wrap_jsx_if_needed(source_text);
         
@@ -37,12 +41,20 @@ impl FileParser {
         } = Parser::new(&self.allocator, &wrapped_source, source_type).parse();
 
         if !errors.is_empty() {
-            let error_msg = errors
-                .iter()
-                .map(|e| format!("{:?}", e))
-                .collect::<Vec<_>>()
-                .join(", ");
-            return Err(WindWardenError::Parse(format!("Parse errors: {}", error_msg)));
+            // For now, provide a simplified error message since extracting line numbers
+            // from Oxc diagnostics is complex and would require more dependencies
+            let error_count = errors.len();
+            let message = if error_count == 1 {
+                "Syntax error in file".to_string()
+            } else {
+                format!("{} syntax errors in file", error_count)
+            };
+            
+            return Err(WindWardenError::parse_error(
+                file_path, 
+                1, // Default to line 1 for now
+                message
+            ));
         }
 
         let mut extractor = ClassExtractor::new(&wrapped_source);
@@ -113,7 +125,7 @@ pub struct ClassMatch {
     pub pattern_type: PatternType,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Copy)]
 pub enum QuoteStyle {
     Single,
     Double,
@@ -123,9 +135,19 @@ pub enum QuoteStyle {
 #[derive(Debug, Clone, PartialEq)]
 pub enum PatternType {
     JSXAttribute,
-    FunctionCall,
-    TemplateString,
-    ArrayElement,
+    FunctionCall {
+        function_name: String,
+        arg_index: usize,
+    },
+    TemplateLiteral {
+        tag: Option<String>, // None for regular `...`, Some("tw") for tw`...`
+    },
+    ArrayElement {
+        array_index: usize,
+    },
+    Array {
+        elements: Vec<String>, // All the string elements from the array
+    },
 }
 
 impl ClassMatch {

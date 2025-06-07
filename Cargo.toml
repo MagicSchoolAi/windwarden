@@ -33,12 +33,14 @@ anyhow = "1.0"
 
 # File handling
 walkdir = "2.4"
+globset = "0.4"
 
 # Parallel processing (for later phases)
 rayon = "1.8"
 
 # String utilities
 once_cell = "1.19"
+lazy_static = "1.4"
 
 # Output formatting
 colored = "2.0"
@@ -47,6 +49,15 @@ colored = "2.0"
 tempfile = "3.8"
 assert_cmd = "2.0"
 predicates = "3.0"
+criterion = { version = "0.5", features = ["html_reports"] }
+
+[[bench]]
+name = "performance"
+harness = false
+
+[[bench]]
+name = "optimization_comparison"
+harness = false
 
 [profile.release]
 lto = true

@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use once_cell::sync::Lazy;
 
 pub use categories::*;
@@ -8,31 +8,57 @@ mod categories;
 pub struct TailwindSorter {
     category_order: &'static [&'static str],
     class_categories: &'static HashMap<&'static str, &'static str>,
+    // Cache for category lookups to avoid repeated iteration
+    category_cache: std::cell::RefCell<HashMap<String, String>>,
+    // Pre-computed category order map for O(1) lookups
+    category_order_map: HashMap<&'static str, usize>,
 }
 
 impl TailwindSorter {
     pub fn new() -> Self {
+        // Pre-compute category order map for O(1) lookups
+        let category_order_map: HashMap<&'static str, usize> = CATEGORY_ORDER
+            .iter()
+            .enumerate()
+            .map(|(i, &category)| (category, i))
+            .collect();
+            
         Self {
             category_order: &CATEGORY_ORDER,
             class_categories: &CLASS_CATEGORIES,
+            category_cache: std::cell::RefCell::new(HashMap::new()),
+            category_order_map,
         }
     }
 
     pub fn sort_classes(&self, class_string: &str) -> String {
-        if class_string.trim().is_empty() {
+        let trimmed = class_string.trim();
+        if trimmed.is_empty() {
             return class_string.to_string();
         }
 
-        let mut classes: Vec<&str> = class_string
-            .split_whitespace()
-            .collect();
+        // Optimize for single class - common case
+        if !trimmed.contains(' ') {
+            return trimmed.to_string();
+        }
 
-        // Remove duplicates while preserving first occurrence
-        let mut seen = std::collections::HashSet::new();
-        classes.retain(|&class| seen.insert(class));
+        // Pre-allocate with estimated capacity
+        let mut classes: Vec<&str> = Vec::with_capacity(trimmed.matches(' ').count() + 1);
+        classes.extend(trimmed.split_whitespace());
+
+        // Remove duplicates while preserving first occurrence - optimized version
+        if classes.len() > 1 {
+            let mut seen = HashSet::with_capacity(classes.len());
+            classes.retain(|&class| seen.insert(class));
+        }
+
+        // Early return if only one class after deduplication
+        if classes.len() == 1 {
+            return classes[0].to_string();
+        }
 
         // Sort classes by category and within category
-        classes.sort_by(|&a, &b| self.compare_classes(a, b));
+        classes.sort_unstable_by(|&a, &b| self.compare_classes(a, b));
 
         classes.join(" ")
     }
@@ -46,8 +72,8 @@ impl TailwindSorter {
         let category_b = self.get_class_category(&base_b);
 
         // First, compare by category order
-        let order_a = self.get_category_order(category_a);
-        let order_b = self.get_category_order(category_b);
+        let order_a = self.get_category_order(&category_a);
+        let order_b = self.get_category_order(&category_b);
 
         match order_a.cmp(&order_b) {
             std::cmp::Ordering::Equal => {
@@ -81,7 +107,12 @@ impl TailwindSorter {
         }
     }
 
-    fn get_class_category(&self, class: &str) -> &str {
+    fn get_class_category(&self, class: &str) -> String {
+        // Check cache first
+        if let Some(cached) = self.category_cache.borrow().get(class) {
+            return cached.clone();
+        }
+        
         // Handle variants (e.g., "hover:bg-blue-500" -> "bg-blue-500")
         let base_class = if let Some(colon_pos) = class.rfind(':') {
             &class[colon_pos + 1..]
@@ -95,7 +126,34 @@ impl TailwindSorter {
         // Handle negative values (e.g., "-m-4" -> "m-4")
         let base_class = base_class.strip_prefix('-').unwrap_or(base_class);
 
-        // Find the longest matching prefix
+        // Find the longest matching prefix - optimized with early returns for common cases
+        let category = self.find_category_optimized(base_class).to_string();
+        
+        // Cache the result
+        self.category_cache.borrow_mut().insert(class.to_string(), category.clone());
+        
+        category
+    }
+    
+    fn find_category_optimized(&self, base_class: &str) -> &'static str {
+        // Fast path for common single-character prefixes
+        if let Some(first_char) = base_class.chars().next() {
+            match first_char {
+                'p' if base_class.starts_with("p-") || base_class.starts_with("px-") || 
+                       base_class.starts_with("py-") || base_class.starts_with("pt-") ||
+                       base_class.starts_with("pb-") || base_class.starts_with("pl-") ||
+                       base_class.starts_with("pr-") => return "padding",
+                'm' if base_class.starts_with("m-") || base_class.starts_with("mx-") || 
+                       base_class.starts_with("my-") || base_class.starts_with("mt-") ||
+                       base_class.starts_with("mb-") || base_class.starts_with("ml-") ||
+                       base_class.starts_with("mr-") => return "margin",
+                'w' if base_class.starts_with("w-") => return "sizing",
+                'h' if base_class.starts_with("h-") => return "sizing",
+                _ => {}
+            }
+        }
+        
+        // Fallback to full prefix matching for other cases
         let mut best_match = "unknown";
         let mut best_length = 0;
 
@@ -110,10 +168,8 @@ impl TailwindSorter {
     }
 
     fn get_category_order(&self, category: &str) -> usize {
-        self.category_order
-            .iter()
-            .position(|&c| c == category)
-            .unwrap_or(999) // Unknown categories go to the end
+        // Use pre-computed map for O(1) lookup instead of O(n) iteration
+        self.category_order_map.get(category).copied().unwrap_or(999)
     }
 }
 

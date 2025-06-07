@@ -1,6 +1,6 @@
 use std::fs;
 
-use crate::parser::{FileParser, QuoteStyle};
+use crate::parser::{FileParser, PatternType, QuoteStyle};
 use crate::sorter::TailwindSorter;
 use crate::{ProcessOptions, Result, WindWardenError};
 
@@ -61,23 +61,66 @@ impl FileProcessor {
                 
                 let replacement = format!("{}{}{}", quote_char, sorted_classes, quote_char);
                 
-                // Find the className attribute in the original content using string search
-                // This is more reliable than span positions for our current use case
-                let search_pattern = format!("{}{}{}", quote_char, class_match.original, quote_char);
-                if let Some(start_pos) = result.find(&search_pattern) {
-                    let end_pos = start_pos + search_pattern.len();
-                    result.replace_range(start_pos..end_pos, &replacement);
+                // Handle different pattern types differently
+                match &class_match.pattern_type {
+                    PatternType::JSXAttribute => {
+                        // For JSX attributes, use string search as before
+                        let search_pattern = format!("{}{}{}", quote_char, class_match.original, quote_char);
+                        if let Some(start_pos) = result.find(&search_pattern) {
+                            let end_pos = start_pos + search_pattern.len();
+                            result.replace_range(start_pos..end_pos, &replacement);
+                        }
+                    }
+                    PatternType::FunctionCall { .. } => {
+                        // For function calls, use span positions since they're more accurate
+                        // The spans should be correct from the AST parser
+                        if class_match.start < result.len() && class_match.end <= result.len() {
+                            result.replace_range(class_match.start..class_match.end, &replacement);
+                        }
+                    }
+                    PatternType::TemplateLiteral { .. } => {
+                        // For template literals, we need to replace just the content, preserving backticks
+                        let template_replacement = format!("`{}`", sorted_classes);
+                        
+                        // Use span positions for template literals
+                        if class_match.start < result.len() && class_match.end <= result.len() {
+                            result.replace_range(class_match.start..class_match.end, &template_replacement);
+                        }
+                    }
+                    PatternType::ArrayElement { .. } => {
+                        // For array elements, use span positions
+                        if class_match.start < result.len() && class_match.end <= result.len() {
+                            result.replace_range(class_match.start..class_match.end, &replacement);
+                        }
+                    }
+                    PatternType::Array { elements: _ } => {
+                        // For arrays, sort the combined classes and rebuild the array
+                        let element_quote_char = match class_match.quote_style {
+                            QuoteStyle::Single => '\'',
+                            QuoteStyle::Double => '"',
+                            QuoteStyle::Backtick => '`', // Though arrays shouldn't use backticks
+                        };
+                        
+                        let sorted_elements: Vec<String> = sorted_classes
+                            .split_whitespace()
+                            .map(|s| format!("{}{}{}", element_quote_char, s, element_quote_char))
+                            .collect();
+                        let array_replacement = format!("[{}]", sorted_elements.join(", "));
+                        
+                        // Use span positions for arrays
+                        if class_match.start < result.len() && class_match.end <= result.len() {
+                            result.replace_range(class_match.start..class_match.end, &array_replacement);
+                        }
+                    }
                 }
             }
         }
 
         // Handle different processing modes
         if options.check_formatted {
-            if changes_made {
-                return Err(WindWardenError::Sort("Classes are not sorted".to_string()));
-            } else {
-                return Ok(String::new()); // Success case - no output needed
-            }
+            // For check_formatted mode, we don't return an error for unsorted classes
+            // We just return the original content and let the caller handle the result
+            return Ok(content.to_string());
         }
 
         if options.write && changes_made {
@@ -136,6 +179,626 @@ mod tests {
         let processor = FileProcessor::new();
         let input = r#"<div className="p-4 flex" id="test"><span className="m-2 text-sm">Text</span></div>"#;
         let expected = r#"<div className="flex p-4" id="test"><span className="m-2 text-sm">Text</span></div>"#;
+        
+        let result = processor.process_content(input, "test.tsx", ProcessOptions::default()).unwrap();
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_basic_cn_function() {
+        let processor = FileProcessor::new();
+        let input = r#"cn("p-4 flex m-2")"#;
+        let expected = r#"cn("flex m-2 p-4")"#;
+        
+        let result = processor.process_content(input, "test.tsx", ProcessOptions::default()).unwrap();
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_multiple_cn_args() {
+        let processor = FileProcessor::new();
+        let input = r#"cn("p-4 flex", "m-2 items-center")"#;
+        let expected = r#"cn("flex p-4", "items-center m-2")"#;
+        
+        let result = processor.process_content(input, "test.tsx", ProcessOptions::default()).unwrap();
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_twMerge_function() {
+        let processor = FileProcessor::new();
+        let input = r#"twMerge("p-4 flex m-2", "p-2 items-center")"#;
+        let expected = r#"twMerge("flex m-2 p-4", "items-center p-2")"#;
+        
+        let result = processor.process_content(input, "test.tsx", ProcessOptions::default()).unwrap();
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_clsx_function() {
+        let processor = FileProcessor::new();
+        let input = r#"clsx("p-4 flex m-2 items-center")"#;
+        let expected = r#"clsx("flex items-center m-2 p-4")"#;
+        
+        let result = processor.process_content(input, "test.tsx", ProcessOptions::default()).unwrap();
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_classNames_function() {
+        let processor = FileProcessor::new();
+        let input = r#"classNames("p-4 flex m-2 items-center")"#;
+        let expected = r#"classNames("flex items-center m-2 p-4")"#;
+        
+        let result = processor.process_content(input, "test.tsx", ProcessOptions::default()).unwrap();
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_classList_function() {
+        let processor = FileProcessor::new();
+        let input = r#"classList("p-4 flex m-2 items-center")"#;
+        let expected = r#"classList("flex items-center m-2 p-4")"#;
+        
+        let result = processor.process_content(input, "test.tsx", ProcessOptions::default()).unwrap();
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_cn_with_conditionals() {
+        let processor = FileProcessor::new();
+        let input = r#"cn("p-4 flex", isActive && "bg-blue-500 text-white", "m-2")"#;
+        // Note: String inside conditional should ALSO be sorted
+        let expected = r#"cn("flex p-4", isActive && "text-white bg-blue-500", "m-2")"#;
+        
+        let result = processor.process_content(input, "test.tsx", ProcessOptions::default()).unwrap();
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_cn_with_objects() {
+        let processor = FileProcessor::new();
+        let input = r#"cn("p-4 flex", { "bg-blue-500": isActive }, "m-2")"#;
+        let expected = r#"cn("flex p-4", { "bg-blue-500": isActive }, "m-2")"#;
+        
+        let result = processor.process_content(input, "test.tsx", ProcessOptions::default()).unwrap();
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_static_template_literal() {
+        let processor = FileProcessor::new();
+        let input = r#"const x = `p-4 flex m-2 items-center`"#;
+        let expected = r#"const x = `flex items-center m-2 p-4`"#;
+        
+        let result = processor.process_content(input, "test.tsx", ProcessOptions::default()).unwrap();
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_tagged_template_literal() {
+        let processor = FileProcessor::new();
+        let input = r#"const styles = tw`p-4 flex m-2 items-center`"#;
+        let expected = r#"const styles = tw`flex items-center m-2 p-4`"#;
+        
+        let result = processor.process_content(input, "test.tsx", ProcessOptions::default()).unwrap();
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_dynamic_template_literal_skipped() {
+        let processor = FileProcessor::new();
+        let input = r#"const x = `p-4 ${baseStyles} m-2 items-center`"#;
+        let expected = r#"const x = `p-4 ${baseStyles} m-2 items-center`"#;
+        
+        let result = processor.process_content(input, "test.tsx", ProcessOptions::default()).unwrap();
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_basic_array() {
+        let processor = FileProcessor::new();
+        let input = r#"const arr = ["p-4", "flex", "m-2", "items-center"]"#;
+        let expected = r#"const arr = ["flex", "items-center", "m-2", "p-4"]"#;
+        
+        let result = processor.process_content(input, "test.tsx", ProcessOptions::default()).unwrap();
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_cva_with_arrays() {
+        let processor = FileProcessor::new();
+        let input = r#"cva(['p-4', 'flex'], { variants: {} })"#;
+        let expected = r#"cva(['flex', 'p-4'], { variants: {} })"#;
+        
+        let result = processor.process_content(input, "test.tsx", ProcessOptions::default()).unwrap();
+        assert_eq!(result, expected);
+    }
+
+    // ===== COMPREHENSIVE PHASE 3 TESTS =====
+
+    #[test]
+    fn test_template_literal_in_jsx() {
+        let processor = FileProcessor::new();
+        let input = r#"<div className={`p-4 flex m-2 items-center`}>"#;
+        let expected = r#"<div className={`flex items-center m-2 p-4`}>"#;
+        
+        let result = processor.process_content(input, "test.tsx", ProcessOptions::default()).unwrap();
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_multiple_template_literals() {
+        let processor = FileProcessor::new();
+        let input = r#"
+const styles1 = `p-4 flex m-2 items-center`;
+const styles2 = `p-4 text-lg border-2 bg-white rounded-lg`;
+"#;
+        let expected = r#"
+const styles1 = `flex items-center m-2 p-4`;
+const styles2 = `p-4 text-lg bg-white border-2 rounded-lg`;
+"#;
+        
+        let result = processor.process_content(input, "test.tsx", ProcessOptions::default()).unwrap();
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_tagged_templates_multiple_tags() {
+        let processor = FileProcessor::new();
+        let input = r#"
+const tailwind = tw`p-4 flex m-2 items-center`;
+const styles = css`p-4 flex m-2 items-center`;
+"#;
+        let expected = r#"
+const tailwind = tw`flex items-center m-2 p-4`;
+const styles = css`flex items-center m-2 p-4`;
+"#;
+        
+        let result = processor.process_content(input, "test.tsx", ProcessOptions::default()).unwrap();
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_array_with_join() {
+        let processor = FileProcessor::new();
+        let input = r#"const classes = ["p-4", "flex", "m-2", "items-center"]"#;
+        let expected = r#"const classes = ["flex", "items-center", "m-2", "p-4"]"#;
+        
+        let result = processor.process_content(input, "test.tsx", ProcessOptions::default()).unwrap();
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_mixed_array_quotes() {
+        let processor = FileProcessor::new();
+        let input = r#"
+const doubleQuotes = ["p-4", "flex", "m-2"];
+const singleQuotes = ['p-2', 'text-lg', 'bg-white', 'border-2'];
+"#;
+        let expected = r#"
+const doubleQuotes = ["flex", "m-2", "p-4"];
+const singleQuotes = ['p-2', 'text-lg', 'bg-white', 'border-2'];
+"#;
+        
+        let result = processor.process_content(input, "test.tsx", ProcessOptions::default()).unwrap();
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_complex_responsive_variants() {
+        let processor = FileProcessor::new();
+        let input = r#"<div className="p-4 hover:bg-blue-500 flex md:flex-row flex-col hover:p-6 sm:p-2">"#;
+        let expected = r#"<div className="flex flex-col md:flex-row sm:p-2 p-4 hover:p-6 hover:bg-blue-500">"#;
+        
+        let result = processor.process_content(input, "test.tsx", ProcessOptions::default()).unwrap();
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_arbitrary_values_and_important() {
+        let processor = FileProcessor::new();
+        let input = r#"<div className="!p-4 flex !m-2 items-center p-[23px] m-[1.5rem]">"#;
+        let expected = r#"<div className="flex items-center !m-2 !p-4 m-[1.5rem] p-[23px]">"#;
+        
+        let result = processor.process_content(input, "test.tsx", ProcessOptions::default()).unwrap();
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_negative_values() {
+        let processor = FileProcessor::new();
+        let input = r#"<div className="-m-4 flex p-2 -translate-x-2 items-center">"#;
+        let expected = r#"<div className="flex items-center -m-4 p-2 -translate-x-2">"#;
+        
+        let result = processor.process_content(input, "test.tsx", ProcessOptions::default()).unwrap();
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_template_literal_with_function_call() {
+        let processor = FileProcessor::new();
+        let input = r#"cn(`p-4 flex m-2 items-center`)"#;
+        let expected = r#"cn(`flex items-center m-2 p-4`)"#;
+        
+        let result = processor.process_content(input, "test.tsx", ProcessOptions::default()).unwrap();
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_cva_basic_comprehensive() {
+        let processor = FileProcessor::new();
+        let input = r#"cva(['p-4', 'flex', 'm-2', 'items-center'], { variants: {} })"#;
+        let expected = r#"cva(['flex', 'items-center', 'm-2', 'p-4'], { variants: {} })"#;
+        
+        let result = processor.process_content(input, "test.tsx", ProcessOptions::default()).unwrap();
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_mixed_patterns_in_same_file() {
+        let processor = FileProcessor::new();
+        let input = r#"
+export function Button({ className, ...props }) {
+  return (
+    <button
+      className={cn(
+        "p-4 flex items-center bg-blue-500 text-white font-semibold rounded-lg",
+        className
+      )}
+      {...props}
+    />
+  );
+}
+
+const baseStyles = `p-2 border-2 rounded text-sm`;
+const variants = ['hover:bg-gray-100', 'focus:ring-2', 'active:bg-gray-200'];
+"#;
+        let expected = r#"
+export function Button({ className, ...props }) {
+  return (
+    <button
+      className={cn(
+        "flex items-center p-4 font-semibold text-white bg-blue-500 rounded-lg",
+        className
+      )}
+      {...props}
+    />
+  );
+}
+
+const baseStyles = `p-2 text-sm border-2 rounded`;
+const variants = ['hover:bg-gray-100', 'focus:ring-2', 'active:bg-gray-200'];
+"#;
+        
+        let result = processor.process_content(input, "test.tsx", ProcessOptions::default()).unwrap();
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_whitespace_normalization() {
+        let processor = FileProcessor::new();
+        let input = r#"<div className="  p-4   flex    m-2  items-center  ">"#;
+        let expected = r#"<div className="flex items-center m-2 p-4">"#;
+        
+        let result = processor.process_content(input, "test.tsx", ProcessOptions::default()).unwrap();
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_duplicate_removal() {
+        let processor = FileProcessor::new();
+        let input = r#"<div className="flex p-4 flex items-center p-4">"#;
+        let expected = r#"<div className="flex items-center p-4">"#;
+        
+        let result = processor.process_content(input, "test.tsx", ProcessOptions::default()).unwrap();
+        assert_eq!(result, expected);
+    }
+
+    // ===== SKIP CASES (should not be modified) =====
+
+    #[test]
+    fn test_dynamic_template_literal_with_interpolation() {
+        let processor = FileProcessor::new();
+        let input = r#"const classes = `p-4 ${dynamic} flex m-2 ${otherVar} items-center`;"#;
+        let expected = r#"const classes = `p-4 ${dynamic} flex m-2 ${otherVar} items-center`;"#;
+        
+        let result = processor.process_content(input, "test.tsx", ProcessOptions::default()).unwrap();
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_mixed_array_with_non_classes() {
+        let processor = FileProcessor::new();
+        let input = r#"const mixed = ["p-4", someVariable, "flex"];"#;
+        let expected = r#"const mixed = ["p-4", someVariable, "flex"];"#;
+        
+        let result = processor.process_content(input, "test.tsx", ProcessOptions::default()).unwrap();
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_non_tailwind_strings() {
+        let processor = FileProcessor::new();
+        let input = r#"const notClasses = ["hello", "world", "test"];"#;
+        let expected = r#"const notClasses = ["hello", "world", "test"];"#;
+        
+        let result = processor.process_content(input, "test.tsx", ProcessOptions::default()).unwrap();
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_cva_with_nested_variants_basic() {
+        let processor = FileProcessor::new();
+        let input = r#"cva(['p-4', 'flex'], { variants: { size: { sm: ['text-sm', 'p-2', 'gap-1'] } } })"#;
+        let expected = r#"cva(['flex', 'p-4'], { variants: { size: { sm: ['gap-1', 'p-2', 'text-sm'] } } })"#;
+        
+        let result = processor.process_content(input, "test.tsx", ProcessOptions::default()).unwrap();
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_cva_with_multiple_nested_variants() {
+        let processor = FileProcessor::new();
+        let input = r#"cva(['p-4', 'flex'], {
+  variants: {
+    size: {
+      sm: ['text-sm', 'p-2', 'gap-1'],
+      lg: ['text-lg', 'p-6', 'gap-4']
+    }
+  }
+})"#;
+        let expected = r#"cva(['flex', 'p-4'], {
+  variants: {
+    size: {
+      sm: ['gap-1', 'p-2', 'text-sm'],
+      lg: ['gap-4', 'p-6', 'text-lg']
+    }
+  }
+})"#;
+        
+        let result = processor.process_content(input, "test.tsx", ProcessOptions::default()).unwrap();
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_cva_with_complex_nested_variants() {
+        let processor = FileProcessor::new();
+        let input = r#"cva(['p-4', 'flex'], {
+  variants: {
+    size: {
+      sm: ['text-sm', 'p-2', 'gap-1'],
+      lg: ['text-lg', 'p-6', 'gap-4']
+    },
+    variant: {
+      primary: ['bg-blue-500', 'text-white', 'hover:bg-blue-600'],
+      secondary: ['bg-gray-200', 'text-gray-900', 'hover:bg-gray-300']
+    }
+  }
+})"#;
+        let expected = r#"cva(['flex', 'p-4'], {
+  variants: {
+    size: {
+      sm: ['gap-1', 'p-2', 'text-sm'],
+      lg: ['gap-4', 'p-6', 'text-lg']
+    },
+    variant: {
+      primary: ['bg-blue-500', 'text-white', 'hover:bg-blue-600'],
+      secondary: ['bg-gray-200', 'text-gray-900', 'hover:bg-gray-300']
+    }
+  }
+})"#;
+        
+        let result = processor.process_content(input, "test.tsx", ProcessOptions::default()).unwrap();
+        assert_eq!(result, expected);
+    }
+
+    // ===== COMPREHENSIVE COMPLEX CVA TESTS =====
+
+    #[test]
+    fn test_cva_from_testcase_reference() {
+        let processor = FileProcessor::new();
+        let input = r#"cva(['p-4', 'flex'], {
+  variants: {
+    size: {
+      sm: ['text-sm', 'p-2', 'gap-1'],
+      lg: ['text-lg', 'p-6', 'gap-4']
+    }
+  }
+})"#;
+        let expected = r#"cva(['flex', 'p-4'], {
+  variants: {
+    size: {
+      sm: ['gap-1', 'p-2', 'text-sm'],
+      lg: ['gap-4', 'p-6', 'text-lg']
+    }
+  }
+})"#;
+        
+        let result = processor.process_content(input, "test.tsx", ProcessOptions::default()).unwrap();
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_cva_deeply_nested_variants() {
+        let processor = FileProcessor::new();
+        let input = r#"cva(['p-4', 'flex'], {
+  variants: {
+    size: {
+      sm: ['text-sm', 'p-2'],
+      lg: ['text-lg', 'p-6']
+    },
+    state: {
+      default: ['bg-white', 'text-black'],
+      active: ['bg-blue-500', 'text-white'],
+      disabled: ['bg-gray-100', 'text-gray-400']
+    }
+  },
+  compoundVariants: [
+    {
+      size: 'sm',
+      state: 'active',
+      class: ['font-bold', 'shadow-sm', 'border-2']
+    }
+  ]
+})"#;
+        let expected = r#"cva(['flex', 'p-4'], {
+  variants: {
+    size: {
+      sm: ['p-2', 'text-sm'],
+      lg: ['p-6', 'text-lg']
+    },
+    state: {
+      default: ['text-black', 'bg-white'],
+      active: ['text-white', 'bg-blue-500'],
+      disabled: ['text-gray-400', 'bg-gray-100']
+    }
+  },
+  compoundVariants: [
+    {
+      size: 'sm',
+      state: 'active',
+      class: ['font-bold', 'shadow-sm', 'border-2']
+    }
+  ]
+})"#;
+        
+        let result = processor.process_content(input, "test.tsx", ProcessOptions::default()).unwrap();
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_multiple_cva_definitions() {
+        let processor = FileProcessor::new();
+        let input = r#"
+const buttonVariants = cva(['p-4', 'flex'], {
+  variants: {
+    size: { sm: ['text-sm', 'p-2'] }
+  }
+});
+
+const cardVariants = cva(['bg-white', 'rounded', 'shadow'], {
+  variants: {
+    padding: { lg: ['p-6', 'gap-4'] }
+  }
+});
+"#;
+        let expected = r#"
+const buttonVariants = cva(['flex', 'p-4'], {
+  variants: {
+    size: { sm: ['p-2', 'text-sm'] }
+  }
+});
+
+const cardVariants = cva(['bg-white', 'rounded', 'shadow'], {
+  variants: {
+    padding: { lg: ['gap-4', 'p-6'] }
+  }
+});
+"#;
+        
+        let result = processor.process_content(input, "test.tsx", ProcessOptions::default()).unwrap();
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_cva_with_mixed_quote_styles() {
+        let processor = FileProcessor::new();
+        let input = r#"cva(["p-4", "flex"], {
+  variants: {
+    size: {
+      sm: ['text-sm', 'p-2'],
+      lg: ["text-lg", "p-6"]
+    }
+  }
+})"#;
+        let expected = r#"cva(["flex", "p-4"], {
+  variants: {
+    size: {
+      sm: ['p-2', 'text-sm'],
+      lg: ["p-6", "text-lg"]
+    }
+  }
+})"#;
+        
+        let result = processor.process_content(input, "test.tsx", ProcessOptions::default()).unwrap();
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_cva_with_empty_and_mixed_arrays() {
+        let processor = FileProcessor::new();
+        let input = r#"cva(['p-4', 'flex'], {
+  variants: {
+    size: {
+      sm: ['text-sm', 'p-2'],
+      md: [],
+      lg: ['text-lg', someVariable, 'p-6']
+    }
+  }
+})"#;
+        let expected = r#"cva(['flex', 'p-4'], {
+  variants: {
+    size: {
+      sm: ['p-2', 'text-sm'],
+      md: [],
+      lg: ['text-lg', someVariable, 'p-6']
+    }
+  }
+})"#;
+        
+        let result = processor.process_content(input, "test.tsx", ProcessOptions::default()).unwrap();
+        assert_eq!(result, expected);
+    }
+
+    // ===== NESTED FUNCTION CALLS TESTS =====
+
+    #[test]
+    fn test_nested_cn_calls_basic() {
+        let processor = FileProcessor::new();
+        let input = r#"cn("p-4", cn("m-2 flex", "items-center"))"#;
+        let expected = r#"cn("p-4", cn("flex m-2", "items-center"))"#;
+        
+        let result = processor.process_content(input, "test.tsx", ProcessOptions::default()).unwrap();
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_deeply_nested_cn_calls() {
+        let processor = FileProcessor::new();
+        let input = r#"cn("p-4 flex", cn("m-2 items-center", cn("bg-white text-black")))"#;
+        let expected = r#"cn("flex p-4", cn("items-center m-2", cn("text-black bg-white")))"#;
+        
+        let result = processor.process_content(input, "test.tsx", ProcessOptions::default()).unwrap();
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_nested_mixed_function_calls() {
+        let processor = FileProcessor::new();
+        let input = r#"cn("p-4 flex", twMerge("m-2 items-center", "bg-blue-500 text-white"))"#;
+        let expected = r#"cn("flex p-4", twMerge("items-center m-2", "text-white bg-blue-500"))"#;
+        
+        let result = processor.process_content(input, "test.tsx", ProcessOptions::default()).unwrap();
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_nested_calls_from_testcase_reference() {
+        let processor = FileProcessor::new();
+        // This test matches the pattern from TESTCASEREFERENCE.ts
+        let input = r#"cn("p-4", cn("flex m-2", "items-center"))"#;
+        let expected = r#"cn("p-4", cn("flex m-2", "items-center"))"#;
+        
+        let result = processor.process_content(input, "test.tsx", ProcessOptions::default()).unwrap();
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_complex_nested_with_jsx() {
+        let processor = FileProcessor::new();
+        let input = r#"<div className={cn("p-4 flex", cn("m-2 items-center", isActive && "bg-blue-500 text-white"))}>"#;
+        let expected = r#"<div className={cn("flex p-4", cn("items-center m-2", isActive && "text-white bg-blue-500"))}>"#;
         
         let result = processor.process_content(input, "test.tsx", ProcessOptions::default()).unwrap();
         assert_eq!(result, expected);
