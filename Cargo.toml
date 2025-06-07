@@ -1,0 +1,54 @@
+[package]
+name = "windwarden"
+version = "0.1.0"
+edition = "2021"
+authors = ["Ben Duggan <ben@benduggan.com>"]
+description = "High-performance CLI tool for sorting Tailwind CSS classes"
+license = "MIT"
+repository = "https://github.com/benduggan/windwarden"
+keywords = ["tailwind", "css", "cli", "formatter"]
+categories = ["command-line-utilities", "development-tools"]
+
+[[bin]]
+name = "windwarden"
+path = "src/main.rs"
+
+[dependencies]
+# CLI
+clap = { version = "4.4", features = ["derive"] }
+
+# AST Parsing with Oxc
+oxc_parser = "0.32"
+oxc_ast = "0.32"
+oxc_span = "0.32"
+oxc_allocator = "0.32"
+
+# Configuration
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Error handling
+thiserror = "1.0"
+anyhow = "1.0"
+
+# File handling
+walkdir = "2.4"
+
+# Parallel processing (for later phases)
+rayon = "1.8"
+
+# String utilities
+once_cell = "1.19"
+
+# Output formatting
+colored = "2.0"
+
+[dev-dependencies]
+tempfile = "3.8"
+assert_cmd = "2.0"
+predicates = "3.0"
+
+[profile.release]
+lto = true
+codegen-units = 1
+strip = true
