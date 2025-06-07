@@ -14,6 +14,7 @@ let
     cli = [
       jfmt
       nixup
+      claude-code
     ];
     rust = [
       cargo
