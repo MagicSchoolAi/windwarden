@@ -226,6 +226,15 @@ jobs:
 
           echo "release-notes-file=release-notes.md" >> $GITHUB_OUTPUT
 
+      - name: Prepare release assets
+        run: |
+          mkdir -p release-assets
+          cp artifacts/windwarden-linux-x86_64/windwarden release-assets/windwarden-linux-x86_64
+          cp artifacts/windwarden-macos-x86_64/windwarden release-assets/windwarden-macos-x86_64
+          cp artifacts/windwarden-macos-aarch64/windwarden release-assets/windwarden-macos-aarch64
+          chmod +x release-assets/*
+          ls -la release-assets/
+
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
@@ -233,9 +242,6 @@ jobs:
           name: WindWarden v${{ needs.check-release.outputs.version }}
           body_path: release-notes.md
           prerelease: ${{ needs.check-release.outputs.is-prerelease == 'true' }}
-          files: |
-            artifacts/windwarden-linux-x86_64/windwarden
-            artifacts/windwarden-macos-x86_64/windwarden
-            artifacts/windwarden-macos-aarch64/windwarden
+          files: release-assets/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
