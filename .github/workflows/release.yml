@@ -11,28 +11,28 @@ env:
 jobs:
   # Build binaries for multiple platforms
   build:
-    name: Build (${{ matrix.target }})
+    name: Build (${{ matrix.asset_name }})
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         include:
           # Linux
-          - target: x86_64-unknown-linux-gnu
-            os: ubuntu-latest
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
             artifact_name: windwarden
             asset_name: windwarden-linux-x86_64
-          - target: aarch64-unknown-linux-gnu
-            os: ubuntu-latest
+          - os: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-gnu
             artifact_name: windwarden
             asset_name: windwarden-linux-aarch64
 
           # macOS
-          - target: x86_64-apple-darwin
-            os: macos-latest
+          - os: macos-13
+            target: x86_64-apple-darwin
             artifact_name: windwarden
             asset_name: windwarden-macos-x86_64
-          - target: aarch64-apple-darwin
-            os: macos-latest
+          - os: macos-latest
+            target: aarch64-apple-darwin
             artifact_name: windwarden
             asset_name: windwarden-macos-aarch64
 
@@ -41,8 +41,6 @@ jobs:
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: ${{ matrix.target }}
 
       - name: Cache dependencies
         uses: actions/cache@v4
@@ -51,28 +49,20 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target
-          key: ${{ runner.os }}-${{ matrix.target }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-
-      # Install cross-compilation tools for Linux ARM64
-      - name: Install cross-compilation tools
-        if: matrix.target == 'aarch64-unknown-linux-gnu'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y gcc-aarch64-linux-gnu
-          echo "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc" >> $GITHUB_ENV
+          key: ${{ runner.os }}-${{ runner.arch }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Build binary
-        run: cargo build --release --target ${{ matrix.target }}
+        run: cargo build --release
 
       - name: Strip binary (Unix)
         if: matrix.os != 'windows-latest'
-        run: strip target/${{ matrix.target }}/release/${{ matrix.artifact_name }}
+        run: strip target/release/${{ matrix.artifact_name }}
 
       - name: Upload binary
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.asset_name }}
-          path: target/${{ matrix.target }}/release/${{ matrix.artifact_name }}
+          path: target/release/${{ matrix.artifact_name }}
 
   # Determine if this should be a release
   check-release:
