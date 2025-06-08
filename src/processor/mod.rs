@@ -652,19 +652,23 @@ const variants = ['hover:bg-gray-100', 'active:bg-gray-200', 'focus:ring-2'];
     #[test]
     fn test_css_calc_expressions_not_processed() {
         let processor = FileProcessor::new();
-        
+
         // CSS calc() expressions should remain untouched
-        let input = r#"const style = { width: 'calc(100vh - 40px)', height: 'calc(100% - 2rem)' };"#;
+        let input =
+            r#"const style = { width: 'calc(100vh - 40px)', height: 'calc(100% - 2rem)' };"#;
         let result = processor
             .process_content(input, "test.tsx", ProcessOptions::default())
             .unwrap();
-        assert_eq!(result, input, "CSS calc() expressions should not be processed");
+        assert_eq!(
+            result, input,
+            "CSS calc() expressions should not be processed"
+        );
     }
 
     #[test]
     fn test_react_directives_not_processed() {
         let processor = FileProcessor::new();
-        
+
         // React directives should remain untouched
         let input = r#"'use client';
 const Component = () => <div>Hello</div>;"#;
@@ -677,7 +681,7 @@ const Component = () => <div>Hello</div>;"#;
     #[test]
     fn test_urls_and_paths_not_processed() {
         let processor = FileProcessor::new();
-        
+
         // URLs and paths should remain untouched
         let input = r#"const url = 'https://example.com/path';
 const path = './components/Button';
@@ -691,7 +695,7 @@ const absolute = '/home/user/file';"#;
     #[test]
     fn test_mixed_real_and_fake_classes() {
         let processor = FileProcessor::new();
-        
+
         // Only actual Tailwind classes should be sorted
         let input = r#"const Component = () => (
   <div 
@@ -720,7 +724,7 @@ const absolute = '/home/user/file';"#;
     #[test]
     fn test_cva_base_classes_array_sorting() {
         let processor = FileProcessor::new();
-        
+
         // CVA base classes array should be sorted
         let input = r#"const alertVariants = cva(['@container', 'relative', 'w-full', 'rounded-lg', 'px-2', 'flex', 'gap-2', 'py-3'], {
   variants: {
@@ -730,7 +734,7 @@ const absolute = '/home/user/file';"#;
     },
   },
 });"#;
-        
+
         let expected = r#"const alertVariants = cva(['relative', 'flex', 'gap-2', 'px-2', 'py-3', 'w-full', 'rounded-lg', '@container'], {
   variants: {
     status: {
@@ -739,7 +743,7 @@ const absolute = '/home/user/file';"#;
     },
   },
 });"#;
-        
+
         let result = processor
             .process_content(input, "test.tsx", ProcessOptions::default())
             .unwrap();

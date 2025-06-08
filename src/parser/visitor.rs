@@ -116,7 +116,7 @@ impl<'a> ClassExtractor<'a> {
 
     fn looks_like_tailwind_classes(&self, content: &str) -> bool {
         let trimmed = content.trim();
-        
+
         // Exclude obvious non-class strings
         if self.is_excluded_string(trimmed) {
             return false;
@@ -134,9 +134,13 @@ impl<'a> ClassExtractor<'a> {
 
     fn is_excluded_string(&self, content: &str) -> bool {
         // Exclude CSS functions
-        if content.starts_with("calc(") || content.starts_with("clamp(") || 
-           content.starts_with("min(") || content.starts_with("max(") ||
-           content.starts_with("var(") || content.starts_with("env(") {
+        if content.starts_with("calc(")
+            || content.starts_with("clamp(")
+            || content.starts_with("min(")
+            || content.starts_with("max(")
+            || content.starts_with("var(")
+            || content.starts_with("env(")
+        {
             return true;
         }
 
@@ -146,8 +150,12 @@ impl<'a> ClassExtractor<'a> {
         }
 
         // Exclude URLs and paths
-        if content.starts_with("http://") || content.starts_with("https://") || 
-           content.starts_with("./") || content.starts_with("../") || content.starts_with("/") {
+        if content.starts_with("http://")
+            || content.starts_with("https://")
+            || content.starts_with("./")
+            || content.starts_with("../")
+            || content.starts_with("/")
+        {
             return true;
         }
 
@@ -161,48 +169,153 @@ impl<'a> ClassExtractor<'a> {
 
     fn contains_tailwind_like_tokens(&self, content: &str) -> bool {
         let tokens: Vec<&str> = content.split_whitespace().collect();
-        
+
         // Require at least one token to look like a Tailwind class
-        tokens.iter().any(|token| self.matches_tailwind_pattern(token))
+        tokens
+            .iter()
+            .any(|token| self.matches_tailwind_pattern(token))
     }
 
     fn matches_tailwind_pattern(&self, token: &str) -> bool {
         // Known Tailwind prefixes
         let common_prefixes = [
             // Layout
-            "block", "inline", "flex", "grid", "table", "hidden", "relative", "absolute", "fixed", "sticky",
-            "static", "inset-", "top-", "right-", "bottom-", "left-", "z-", "float-", "clear-", "object-",
-            "overflow-", "overscroll-", "position-", "visible", "invisible", "collapse",
+            "block",
+            "inline",
+            "flex",
+            "grid",
+            "table",
+            "hidden",
+            "relative",
+            "absolute",
+            "fixed",
+            "sticky",
+            "static",
+            "inset-",
+            "top-",
+            "right-",
+            "bottom-",
+            "left-",
+            "z-",
+            "float-",
+            "clear-",
+            "object-",
+            "overflow-",
+            "overscroll-",
+            "position-",
+            "visible",
+            "invisible",
+            "collapse",
             // Container Queries
-            "@container", "@apply", "@screen", "@layer",
+            "@container",
+            "@apply",
+            "@screen",
+            "@layer",
             // Flexbox & Grid
-            "items-", "justify-", "gap-", "grid-", "col-", "row-", "flex-", "order-",
-            "justify-self-", "justify-items-", "content-", "items-", "self-",
+            "items-",
+            "justify-",
+            "gap-",
+            "grid-",
+            "col-",
+            "row-",
+            "flex-",
+            "order-",
+            "justify-self-",
+            "justify-items-",
+            "content-",
+            "items-",
+            "self-",
             // Spacing
-            "p-", "px-", "py-", "pt-", "pr-", "pb-", "pl-",
-            "m-", "mx-", "my-", "mt-", "mr-", "mb-", "ml-",
-            "space-", "-space-",
+            "p-",
+            "px-",
+            "py-",
+            "pt-",
+            "pr-",
+            "pb-",
+            "pl-",
+            "m-",
+            "mx-",
+            "my-",
+            "mt-",
+            "mr-",
+            "mb-",
+            "ml-",
+            "space-",
+            "-space-",
             // Sizing
-            "w-", "h-", "min-w-", "min-h-", "max-w-", "max-h-", "size-",
+            "w-",
+            "h-",
+            "min-w-",
+            "min-h-",
+            "max-w-",
+            "max-h-",
+            "size-",
             // Typography
-            "text-", "font-", "leading-", "tracking-", "line-", "list-", "placeholder-",
-            "decoration-", "underline", "overline", "line-through", "no-underline",
+            "text-",
+            "font-",
+            "leading-",
+            "tracking-",
+            "line-",
+            "list-",
+            "placeholder-",
+            "decoration-",
+            "underline",
+            "overline",
+            "line-through",
+            "no-underline",
             // Backgrounds
-            "bg-", "from-", "via-", "to-", "gradient-",
+            "bg-",
+            "from-",
+            "via-",
+            "to-",
+            "gradient-",
             // Borders
-            "border", "border-", "rounded", "rounded-", "divide-", "outline-",
+            "border",
+            "border-",
+            "rounded",
+            "rounded-",
+            "divide-",
+            "outline-",
             // Effects
-            "shadow", "shadow-", "opacity-", "ring-", "ring-", "drop-shadow-",
+            "shadow",
+            "shadow-",
+            "opacity-",
+            "ring-",
+            "ring-",
+            "drop-shadow-",
             // Filters
-            "blur-", "brightness-", "contrast-", "grayscale", "invert", "saturate-",
-            "sepia", "hue-rotate-", "filter", "backdrop-",
+            "blur-",
+            "brightness-",
+            "contrast-",
+            "grayscale",
+            "invert",
+            "saturate-",
+            "sepia",
+            "hue-rotate-",
+            "filter",
+            "backdrop-",
             // Transforms
-            "transform", "rotate-", "scale-", "translate-", "skew-", "origin-",
+            "transform",
+            "rotate-",
+            "scale-",
+            "translate-",
+            "skew-",
+            "origin-",
             // Transitions
-            "transition", "duration-", "ease-", "delay-", "animate-",
+            "transition",
+            "duration-",
+            "ease-",
+            "delay-",
+            "animate-",
             // Interactivity
-            "cursor-", "select-", "pointer-events-", "resize", "scroll-", "snap-",
-            "touch-", "will-change-",
+            "cursor-",
+            "select-",
+            "pointer-events-",
+            "resize",
+            "scroll-",
+            "snap-",
+            "touch-",
+            "will-change-",
         ];
 
         // Check for exact matches or prefix matches
@@ -222,7 +335,12 @@ impl<'a> ClassExtractor<'a> {
             if parts.len() == 2 {
                 let prefix = parts[0];
                 let class = parts[1];
-                if ["sm", "md", "lg", "xl", "2xl", "dark", "hover", "focus", "active", "first", "last", "odd", "even"].contains(&prefix) {
+                if [
+                    "sm", "md", "lg", "xl", "2xl", "dark", "hover", "focus", "active", "first",
+                    "last", "odd", "even",
+                ]
+                .contains(&prefix)
+                {
                     return self.matches_tailwind_pattern(class);
                 }
             }
@@ -442,12 +560,12 @@ impl<'a> Visit<'a> for ClassExtractor<'a> {
                     let content = self.extract_class_string_content(string_lit.span);
                     string_elements.push(content.clone());
                     total_strings += 1;
-                    
+
                     // Use the quote style from the first element for consistency
                     if total_strings == 1 {
                         quote_style = self.detect_quote_style(string_lit.span);
                     }
-                    
+
                     // Check if this specific element looks like Tailwind classes
                     if self.looks_like_tailwind_classes(&content) {
                         tailwind_elements.push(content);
