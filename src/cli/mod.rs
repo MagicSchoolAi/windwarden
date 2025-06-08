@@ -16,7 +16,6 @@ pub struct Cli {
     #[arg(long, help = "Read code from stdin and output to stdout")]
     pub stdin: bool,
 
-
     /// Configuration file path (searches for .windwarden.json by default)
     #[arg(short, long, help = "Path to configuration file", value_name = "FILE")]
     pub config: Option<PathBuf>,

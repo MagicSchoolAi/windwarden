@@ -420,7 +420,6 @@ fn test_follow_links_flag() {
     }
 }
 
-
 #[test]
 fn test_stdin_processing() {
     let mut cmd = Command::cargo_bin("windwarden").unwrap();
