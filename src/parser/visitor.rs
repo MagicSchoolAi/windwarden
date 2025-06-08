@@ -170,10 +170,27 @@ impl<'a> ClassExtractor<'a> {
     fn contains_tailwind_like_tokens(&self, content: &str) -> bool {
         let tokens: Vec<&str> = content.split_whitespace().collect();
 
-        // Require at least one token to look like a Tailwind class
-        tokens
-            .iter()
-            .any(|token| self.matches_tailwind_pattern(token))
+        // For multi-token strings, require a higher threshold to avoid false positives
+        // At least 50% of tokens should look like Tailwind classes, and at least 2 tokens total
+        if tokens.len() >= 2 {
+            let tailwind_tokens = tokens
+                .iter()
+                .filter(|token| self.matches_tailwind_pattern(token))
+                .count();
+            
+            // For short strings (2-4 tokens), require at least 2 Tailwind tokens
+            // For longer strings, require at least 50% to be Tailwind tokens
+            if tokens.len() <= 4 {
+                tailwind_tokens >= 2
+            } else {
+                tailwind_tokens as f32 / tokens.len() as f32 >= 0.5
+            }
+        } else {
+            // Single token - check if it looks like a Tailwind class
+            tokens
+                .iter()
+                .any(|token| self.matches_tailwind_pattern(token))
+        }
     }
 
     fn matches_tailwind_pattern(&self, mut token: &str) -> bool {
@@ -920,6 +937,54 @@ mod tests {
             assert_eq!(elements[1], "flex");
         } else {
             panic!("Expected Array pattern type");
+        }
+    }
+
+    #[test]
+    fn test_regular_text_not_processed() {
+        // Test cases that should NOT be processed as Tailwind classes
+        let test_cases = vec![
+            "Sensitivity cannot be adjusted for self-harm category",
+            "Enable guardrails to adjust sensitivity",
+            "self-harm prevention is important",
+            "the quick brown fox jumps",
+            "hello world this is a test",
+            "user input validation required",
+        ];
+
+        for test_case in test_cases {
+            let source = format!("const test = '{}';", test_case);
+            let matches = parse_and_extract(&source);
+            
+            assert_eq!(
+                matches.len(), 
+                0, 
+                "Regular text '{}' should not be processed as Tailwind classes", 
+                test_case
+            );
+        }
+    }
+
+    #[test]
+    fn test_legitimate_tailwind_still_processed() {
+        // Test cases that SHOULD be processed as Tailwind classes
+        let test_cases = vec![
+            ("p-4 flex m-2", 1),
+            ("bg-blue-500 text-white", 1),
+            ("self-center justify-self-start", 1),
+            ("hover:bg-red-500 focus:ring-2", 1),
+        ];
+
+        for (test_case, expected_matches) in test_cases {
+            let source = format!("const test = '{}';", test_case);
+            let matches = parse_and_extract(&source);
+            
+            assert_eq!(
+                matches.len(), 
+                expected_matches, 
+                "Legitimate Tailwind classes '{}' should be processed", 
+                test_case
+            );
         }
     }
 }
