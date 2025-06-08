@@ -4,8 +4,6 @@ on:
   push:
     branches: [main]
     tags: ["v*"]
-  pull_request:
-    branches: [main]
 
 env:
   CARGO_TERM_COLOR: always
@@ -242,8 +240,6 @@ jobs:
             artifacts/windwarden-linux-aarch64/windwarden
             artifacts/windwarden-macos-x86_64/windwarden
             artifacts/windwarden-macos-aarch64/windwarden
-            artifacts/windwarden-windows-x86_64.exe/windwarden.exe
-            artifacts/windwarden-windows-aarch64.exe/windwarden.exe
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

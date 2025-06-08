@@ -36,8 +36,5 @@ mod test_runner {
         if env::var("RUST_LOG").is_err() {
             println!("Tip: Set RUST_LOG=debug for verbose output");
         }
-
-        // This test always passes - it's just for organization
-        assert!(true);
     }
 }
