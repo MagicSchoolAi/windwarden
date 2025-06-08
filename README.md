@@ -1,169 +1,125 @@
-## Overview
+# WindWarden
 
-WindWarden is a high-performance CLI tool for sorting and organizing Tailwind CSS classes. Built in Rust for speed and reliability, it automatically sorts Tailwind classes according to the official order, removes duplicates, and supports various file formats, utility function patterns, and customization
+> **A blazing fast CLI tool for sorting Tailwind CSS classes**
 
----
+WindWarden automatically sorts Tailwind CSS classes according to the official recommended order. Built in Rust for maximum performance, it uses AST parsing to handle complex patterns like JSX attributes, utility functions (`cn()`, `clsx()`), template literals, and arrays.
 
-## Core Features
+## ✨ Features
 
-### 1. Tailwind CSS Class Sorting
+- **🚀 Lightning Fast** - Built in Rust with [Oxc parser](https://github.com/oxc-project/oxc) for maximum performance
+- **🎯 Smart Parsing** - AST-based parsing handles complex patterns and preserves formatting
+- **🔧 Flexible Configuration** - Support for custom sort orders, function names, and patterns
+- **📁 Multi-Format Support** - Works with `.js`, `.jsx`, `.ts`, `.tsx`, `.vue`, `.svelte`, and more
+- **⚡ Parallel Processing** - Multi-threaded file processing for large codebases
+- **🛡️ Safe Operations** - Preserves quotes, indentation, and original formatting
 
-* Automatically sorts Tailwind CSS classes according to official or custom order
-* Removes duplicate classes (configurable)
-* Preserves class functionality and improves readability
-* Supports all Tailwind CSS versions and custom configs
-* Recognizes `class`, `className`, and custom patterns (arrays, CVA, etc.)
-* Supports all quote styles: single, double, and backticks
+## 🚀 Quick Start
 
-### 2. Multi-Pattern Support
+### Installation
 
-#### Standard Patterns
+```bash
+# Download from GitHub releases
+curl -L https://github.com/benduggan/windwarden/releases/latest/download/windwarden-linux-x86_64 -o windwarden
+chmod +x windwarden
+sudo mv windwarden /usr/local/bin/
 
-* `className="flex items-center p-4"`
-* `class="flex items-center p-4"`
+# Or build from source
+cargo install --git https://github.com/benduggan/windwarden
+```
 
-#### Utility Function Support
+### Basic Usage
 
-* `cn("flex items-center", true && "flex p-4")`
-* `twMerge("flex items-center", "p-4")`
-* `clsx("flex items-center", "p-4")`
-* `classNames("flex items-center", "p-4")`
-* `classList("flex items-center", "p-4")`
-* User-defined utility functions
-* Tagged template literals (e.g., `tw\`bg-white p-4\`\`)
+```bash
+# Format files in place
+windwarden format --mode write src/
 
-#### Advanced Array Patterns (CVA Support)
+# Check if files need formatting (CI/CD)
+windwarden check src/
 
-* Handles arrays of class strings
-* Supports CVA-style syntax:
+# Preview changes without writing
+windwarden format --mode check src/
 
-  ```js
-  cva(['p-4', 'flex', 'items-center'], { variants: { ... } })
-  // => cva(['flex', 'items-center', 'p-4'], { variants: { ... } })
-  ```
-* Supports nested arrays
+# Process from stdin
+echo '<div className="p-4 flex m-2">' | windwarden --stdin
+```
 
-### 3. File Format Support
+## 🎯 What It Does
 
-* `.js`, `.jsx`, `.ts`, `.tsx`
-* `.html`, `.vue`, `.svelte`, `.astro`, `.mdx`
+**Before:**
+```jsx
+<div className="p-4 bg-red-500 flex justify-center items-center m-2 text-white">
+  <span className="font-bold text-lg p-2">Hello</span>
+</div>
+```
 
-### 4. Configuration Options
+**After:**
+```jsx
+<div className="flex items-center justify-center m-2 p-4 bg-red-500 text-white">
+  <span className="p-2 text-lg font-bold">Hello</span>
+</div>
+```
 
-#### CLI Configuration
+## 📖 Documentation
 
-* Preset regex patterns:
+| Document | Description |
+|----------|-------------|
+| **[Usage Guide](docs/USAGE.md)** | Comprehensive usage examples and CLI options |
+| **[Performance Guide](docs/PERFORMANCE.md)** | Performance benchmarks and optimization tips |
+| **[Architecture](docs/ARCHITECTUREPLAN.md)** | Technical architecture and design decisions |
+| **[Git Integration](docs/GIT_INTEGRATION.md)** | Git hooks, CI/CD setup, and automation |
+| **[Shell Completions](docs/COMPLETIONS.md)** | Shell completion setup for bash, zsh, fish |
+| **[Custom Sorting](docs/CUSTOM_SORTING_DEMO.md)** | Custom sort orders and configuration |
+| **[Project Plan](docs/PROJECTPLAN.md)** | Development roadmap and feature planning |
+| **[Resources](docs/RESOURCES.md)** | Additional resources and references |
 
-  * `--preset-regex cn`
-  * `--preset-regex tw-merge`
-  * `--preset-regex clsx`
-  * `--preset-regex utility-functions`
-  * `--preset-regex combined`
-  * `--preset-regex all`
+## 🔧 Supported Patterns
 
-#### JSON Configuration File
+WindWarden handles all common Tailwind CSS patterns:
+
+```jsx
+// JSX className
+<div className="flex items-center p-4" />
+
+// Utility functions
+cn("flex items-center", condition && "p-4")
+clsx("flex", "items-center", "p-4")
+twMerge("flex items-center", "p-4")
+
+// Template literals
+const classes = `flex items-center p-4`
+const styled = tw`flex items-center p-4`
+
+// Arrays and CVA patterns
+cva(["flex", "items-center"], { variants: { ... } })
+```
+
+## ⚙️ Configuration
+
+Create a `.windwarden.json` config file:
 
 ```json
 {
-  "sortOrder": ["custom", "class", "order"],
-  "presetRegex": "all",
-  "functionNames": ["myMerge", "myClsx"],
-  "customRegex": "custom-pattern"
+  "sortOrder": "official",
+  "functionNames": ["cn", "clsx", "twMerge"],
+  "fileExtensions": ["tsx", "jsx", "ts", "js"],
+  "ignorePaths": ["node_modules", "dist"]
 }
 ```
 
-#### Advanced Configuration
+## 🚦 Exit Codes
 
-* **Category Order**: Defines how categories are sorted
-* **Categories**: Maps Tailwind class prefixes to named categories
-* **Pseudo Classes Order**: Sort order for responsive and pseudo variants
-* **Custom Prefixes**: Accepts non-standard prefixes for class detection and function calls
+- `0` - Success (no formatting needed or changes applied successfully)
+- `1` - Files need formatting (when using `check` command)
+- `2` - Error occurred during processing
 
-### 5. Advanced Sorting Options
+## 🤝 Contributing
 
-#### Custom Sort Orders
+Contributions are welcome! Please see our [development docs](docs/) for technical details.
 
-* Define custom order in config files
+## 📄 License
 
-### 6. Operation Modes
-
-#### Processing Modes
-
-* `--dry-run`: Preview changes
-* `--write`: Apply changes
-* Console output
-* `--stdin`: Process standard input
-* `--check-formatted`: Verify sort status with an exit code (useful for CI)
-
-#### Performance Features
-
-* Multi-threaded processing
-* Filters relevant file types
-
-### 7. Safety Features
-
-#### Content Preservation
-
-* AST-based targeting for edits
-* Preserves quote style and indentation
-
-#### File Safety
-
-* Ignore patterns and directory filters
-* Extension-based processing
-* Dry-run and error-safe previewing
-* Detailed error handling
-
-### 8. Integration Support
-
-#### Development Tools
-
-* Exit codes for CI/CD
-* Compatible with Git hooks
-* Works with VS Code, Vim, etc.
+MIT License - see LICENSE file for details.
 
 ---
 
-## Technical Architecture
-
-### Performance Characteristics
-
-* Language: Rust
-* Low memory usage
-* Parallel processing
-* Optimized, compiled regexes
-* **Parser and AST powered by ****************************************************************[Oxc](https://github.com/oxc-project/oxc)****************************************************************:**
-
-  * Oxc is the fastest and most conformant JS/TS parser in Rust
-  * Memory arena (bumpalo) for fast allocation/deallocation
-  * CompactString for inlined short strings
-  * AST avoids ambiguous estree nodes by using specific types like `BindingIdentifier` vs `IdentifierReference`
-  * Parser defers symbol resolution and scope binding to semantic analysis
-
----
-
-## Use Cases
-
-### 1. Code Consistency
-
-* Enforce Tailwind class ordering
-* Reduce VCS diff noise
-* Improve readability and maintainability
-
-### 2. Large Codebase Management
-
-* Scale to thousands of files
-* Automate formatting in CI/CD
-* Cross-developer consistency
-
-### 3. Component Library Development
-
-* Sort reusable component classes
-* Full CVA support
-* Consistent component variant styling
-
-### 4. Migration and Refactoring
-
-* Standardize during Tailwind upgrades
-* Format legacy codebases
-* Automate bulk refactors
+**[View Full Documentation →](docs/)**
