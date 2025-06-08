@@ -222,7 +222,6 @@ jobs:
           prerelease: ${{ needs.check-release.outputs.is-prerelease == 'true' }}
           files: |
             artifacts/windwarden-linux-x86_64/windwarden
-            # artifacts/windwarden-linux-aarch64/windwarden
             artifacts/windwarden-macos-x86_64/windwarden
             artifacts/windwarden-macos-aarch64/windwarden
         env:
