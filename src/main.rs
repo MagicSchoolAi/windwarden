@@ -6,7 +6,7 @@ use windwarden::cli::{Cli, Commands, ConfigAction, OperationMode, ProcessingMode
 use windwarden::config::ConfigManager;
 use windwarden::file_processor::{FileDiscovery, FileDiscoveryConfig, FileProcessingPipeline};
 use windwarden::output::{OutputFormatter, ProgressReporter, ProgressTracker};
-use windwarden::{process_file, process_stdin, ProcessOptions, WindWardenError};
+use windwarden::{process_stdin, ProcessOptions, WindWardenError};
 
 #[derive(Debug, Clone)]
 struct CommandOptions {
@@ -34,31 +34,6 @@ fn main() {
     };
 
     let result = match &cli.command {
-        Some(Commands::Process {
-            file,
-            dry_run,
-            write,
-        }) => {
-            // Legacy single file processing
-            let options = ProcessOptions {
-                dry_run: *dry_run,
-                write: *write,
-                check_formatted: false,
-            };
-            match process_file(file, options) {
-                Ok(output) => {
-                    if !output.is_empty() {
-                        println!("{}", output);
-                    }
-                    Ok(0)
-                }
-                Err(e) => {
-                    eprintln!("{}", e.user_message());
-                    Ok(1)
-                }
-            }
-        }
-
         Some(Commands::Format {
             paths,
             mode,
@@ -116,11 +91,11 @@ fn main() {
 
         None => {
             if cli.stdin {
-                // Legacy stdin processing
+                // Stdin processing
                 let options = ProcessOptions {
-                    dry_run: cli.dry_run,
+                    dry_run: false,
                     write: false, // stdin always outputs to stdout
-                    check_formatted: cli.check_formatted,
+                    check_formatted: false,
                 };
                 match process_stdin(options) {
                     Ok(output) => {
@@ -135,7 +110,7 @@ fn main() {
                     }
                 }
             } else {
-                eprintln!("Error: Must specify a command, file, or use --stdin");
+                eprintln!("Error: Must specify a command or use --stdin");
                 eprintln!("Try 'windwarden --help' for more information.");
                 Ok(1)
             }

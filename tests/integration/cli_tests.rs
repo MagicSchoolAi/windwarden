@@ -421,32 +421,6 @@ fn test_follow_links_flag() {
 }
 
 #[test]
-fn test_legacy_process_command() {
-    let temp_dir = TempDir::new().expect("Failed to create temp directory");
-    fs::write(
-        temp_dir.path().join("test.tsx"),
-        r#"export const Test = () => <div className="p-4 bg-red-500 flex">Test</div>;"#,
-    )
-    .expect("Failed to write test file");
-
-    // Test legacy process command with dry-run
-    let mut cmd = Command::cargo_bin("windwarden").unwrap();
-    cmd.arg("process")
-        .arg("--dry-run")
-        .arg(temp_dir.path().join("test.tsx"))
-        .assert()
-        .success();
-
-    // Test legacy process command with write
-    let mut cmd = Command::cargo_bin("windwarden").unwrap();
-    cmd.arg("process")
-        .arg("--write")
-        .arg(temp_dir.path().join("test.tsx"))
-        .assert()
-        .success();
-}
-
-#[test]
 fn test_stdin_processing() {
     let mut cmd = Command::cargo_bin("windwarden").unwrap();
     cmd.arg("--stdin")
