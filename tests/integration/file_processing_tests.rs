@@ -242,6 +242,40 @@ fn test_exclude_patterns() {
 }
 
 #[test]
+fn test_next_directory_excluded_by_default() {
+    let temp_dir = TempDir::new().expect("Failed to create temp directory");
+
+    // Create a valid source file
+    fs::write(
+        temp_dir.path().join("component.tsx"),
+        r#"export const Component = () => <div className="p-4 bg-red-500 flex">Component</div>;"#,
+    )
+    .expect("Failed to write component file");
+
+    // Create .next directory with JS files that would cause parse errors
+    fs::create_dir_all(temp_dir.path().join(".next/server/chunks/ssr"))
+        .expect("Failed to create .next directory");
+
+    fs::write(
+        temp_dir.path().join(".next/server/chunks/ssr/minified_chunk.js"),
+        r#"(()=>{"use strict";var e,t,r,n,o,u,i,a,c,l,s,f,p,d,h,y,m,v,g,b,w,x,k,O,j,E,S,A,P,C,T={};"#,
+    )
+    .expect("Failed to write .next file");
+
+    // Run windwarden - should NOT process .next files and should succeed
+    let mut cmd = Command::cargo_bin("windwarden").unwrap();
+    cmd.arg("format")
+        .arg("--mode")
+        .arg("check")
+        .arg("--stats")
+        .arg(temp_dir.path())
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Total files: 1")) // Only the component.tsx should be processed
+        .stdout(predicate::str::contains("would be formatted"));
+}
+
+#[test]
 fn test_parallel_processing() {
     let temp_dir = create_test_directory();
 

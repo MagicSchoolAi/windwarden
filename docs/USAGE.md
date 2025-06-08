@@ -172,11 +172,6 @@ Create a configuration file with `windwarden config init`:
   "removeNullClasses": true,
   "preserveDuplicates": false,
   "defaultMode": null,
-  "git": {
-    "checkGitStatus": false,
-    "onlyGitFiles": false,
-    "respectGitignore": true
-  },
   "safety": {
     "atomicWrites": true,
     "createBackups": false,
@@ -248,14 +243,6 @@ Create a configuration file with `windwarden config init`:
 | `preserveDuplicates` | `boolean` | `false` | Keep duplicate classes |
 | `defaultMode` | `"format"` \| `"check"` \| `"diff"` \| `null` | `null` | Default operation mode |
 
-#### Git Integration
-
-| Setting | Type | Default | Description |
-|---------|------|---------|-------------|
-| `git.checkGitStatus` | `boolean` | `false` | Only process modified files |
-| `git.onlyGitFiles` | `boolean` | `false` | Only process git-tracked files |
-| `git.respectGitignore` | `boolean` | `true` | Respect .gitignore patterns |
-
 #### Safety Features
 
 | Setting | Type | Default | Description |
@@ -290,10 +277,7 @@ interactivity, svg, accessibility
 
 - `fileExtensions` filters which files are processed
 - `maxFileSize` prevents processing very large files
-- Git settings interact with file discovery:
-  - `respectGitignore` excludes gitignored files
-  - `onlyGitFiles` processes only tracked files
-  - `checkGitStatus` processes only modified files
+- `ignorePaths` excludes directories like `node_modules`, `.next`, etc.
 
 #### 4. Safety Rules
 
@@ -673,25 +657,6 @@ Add custom pattern recognition:
 windwarden format --threads 8 --max-file-size 5242880 src/
 ```
 
-### Git Integration
-
-Process only relevant files:
-
-```json
-{
-  "git": {
-    "onlyGitFiles": true,      // Only git-tracked files
-    "checkGitStatus": true,    // Only modified files
-    "respectGitignore": true   // Skip gitignored files
-  }
-}
-```
-
-```bash
-# Process only files changed in last commit
-git diff --name-only HEAD~1 | xargs windwarden format --mode write
-```
-
 ## Integration
 
 ### IDE Integration
@@ -808,7 +773,7 @@ module.exports = {
 **Solutions**:
 - Check file extensions: `windwarden format --extensions tsx,jsx,ts,js src/`
 - Verify file paths: Use absolute paths if relative paths don't work
-- Check gitignore: Files might be excluded by git settings
+- Check ignore paths: Files might be excluded by `ignorePaths` configuration
 - File size limits: Large files might exceed `maxFileSize`
 
 ```bash
@@ -865,25 +830,6 @@ windwarden format --mode write \
   "customRegex": [
     "myFunction\\([\"'`]([^\"'`]+)[\"'`]\\)"
   ]
-}
-```
-
-#### 5. Git Integration Issues
-
-**Problem**: Git settings not working as expected
-
-**Solutions**:
-- Check git status: Ensure you're in a git repository
-- Verify file tracking: `git ls-files` shows tracked files
-- Test git settings: Use `git status` to see modified files
-
-```json
-{
-  "git": {
-    "onlyGitFiles": false,     // Process all files
-    "checkGitStatus": false,   // Don't filter by git status
-    "respectGitignore": true   // Still respect gitignore
-  }
 }
 ```
 
