@@ -115,22 +115,250 @@ impl<'a> ClassExtractor<'a> {
     }
 
     fn looks_like_tailwind_classes(&self, content: &str) -> bool {
-        // Simple heuristic: if it contains spaces and looks like classes
         let trimmed = content.trim();
 
-        // Must have spaces (multiple classes) or known Tailwind patterns
+        // Exclude obvious non-class strings
+        if self.is_excluded_string(trimmed) {
+            return false;
+        }
+
+        // Check if string contains potential Tailwind classes
         if trimmed.contains(' ') {
+            // Multiple words - check if they look like CSS classes
+            return self.contains_tailwind_like_tokens(trimmed);
+        }
+
+        // Single token - check if it matches common Tailwind patterns
+        self.matches_tailwind_pattern(trimmed)
+    }
+
+    fn is_excluded_string(&self, content: &str) -> bool {
+        // Exclude CSS functions
+        if content.starts_with("calc(")
+            || content.starts_with("clamp(")
+            || content.starts_with("min(")
+            || content.starts_with("max(")
+            || content.starts_with("var(")
+            || content.starts_with("env(")
+        {
             return true;
         }
 
-        // Single class - check if it matches common Tailwind patterns
-        let common_prefixes = [
-            "p-", "m-", "text-", "bg-", "flex", "grid", "w-", "h-", "border-", "rounded", "items-",
-            "justify-", "gap-",
-        ];
-        common_prefixes
+        // Exclude JavaScript/React directives
+        if content == "use client" || content == "use strict" || content == "use server" {
+            return true;
+        }
+
+        // Exclude URLs and paths
+        if content.starts_with("http://")
+            || content.starts_with("https://")
+            || content.starts_with("./")
+            || content.starts_with("../")
+            || content.starts_with("/")
+        {
+            return true;
+        }
+
+        // Exclude common non-class patterns
+        if content.contains("://") || content.contains("@") || content.contains("=") {
+            return true;
+        }
+
+        false
+    }
+
+    fn contains_tailwind_like_tokens(&self, content: &str) -> bool {
+        let tokens: Vec<&str> = content.split_whitespace().collect();
+
+        // Require at least one token to look like a Tailwind class
+        tokens
             .iter()
-            .any(|prefix| trimmed.starts_with(prefix))
+            .any(|token| self.matches_tailwind_pattern(token))
+    }
+
+    fn matches_tailwind_pattern(&self, mut token: &str) -> bool {
+        // Handle modifiers iteratively to avoid recursion warnings
+        loop {
+            // Check for responsive prefixes (sm:, md:, lg:, xl:, 2xl:)
+            if let Some(colon_pos) = token.find(':') {
+                let prefix = &token[..colon_pos];
+                if [
+                    "sm", "md", "lg", "xl", "2xl", "dark", "hover", "focus", "active", "first",
+                    "last", "odd", "even",
+                ]
+                .contains(&prefix)
+                {
+                    token = &token[colon_pos + 1..];
+                    continue;
+                }
+            }
+
+            // Check for negative values (-m-4, -mt-2, etc.)
+            if token.starts_with('-') && token.len() > 1 {
+                token = &token[1..];
+                continue;
+            }
+
+            // Check for important modifier (space-y-4!, bg-red-500!, etc.)
+            if token.ends_with('!') && token.len() > 1 {
+                token = &token[..token.len() - 1];
+                continue;
+            }
+
+            // No more modifiers to strip
+            break;
+        }
+
+        // Now check the core token
+        // Known Tailwind prefixes
+        let common_prefixes = [
+            // Layout
+            "block",
+            "inline",
+            "flex",
+            "grid",
+            "table",
+            "hidden",
+            "relative",
+            "absolute",
+            "fixed",
+            "sticky",
+            "static",
+            "inset-",
+            "top-",
+            "right-",
+            "bottom-",
+            "left-",
+            "z-",
+            "float-",
+            "clear-",
+            "object-",
+            "overflow-",
+            "overscroll-",
+            "position-",
+            "visible",
+            "invisible",
+            "collapse",
+            // Container Queries
+            "@container",
+            "@apply",
+            "@screen",
+            "@layer",
+            // Flexbox & Grid
+            "items-",
+            "justify-",
+            "gap-",
+            "grid-",
+            "col-",
+            "row-",
+            "flex-",
+            "order-",
+            "justify-self-",
+            "justify-items-",
+            "content-",
+            "items-",
+            "self-",
+            // Spacing
+            "p-",
+            "px-",
+            "py-",
+            "pt-",
+            "pr-",
+            "pb-",
+            "pl-",
+            "m-",
+            "mx-",
+            "my-",
+            "mt-",
+            "mr-",
+            "mb-",
+            "ml-",
+            "space-",
+            "-space-",
+            // Sizing
+            "w-",
+            "h-",
+            "min-w-",
+            "min-h-",
+            "max-w-",
+            "max-h-",
+            "size-",
+            // Typography
+            "text-",
+            "font-",
+            "leading-",
+            "tracking-",
+            "line-",
+            "list-",
+            "placeholder-",
+            "decoration-",
+            "underline",
+            "overline",
+            "line-through",
+            "no-underline",
+            // Backgrounds
+            "bg-",
+            "from-",
+            "via-",
+            "to-",
+            "gradient-",
+            // Borders
+            "border",
+            "border-",
+            "rounded",
+            "rounded-",
+            "divide-",
+            "outline-",
+            // Effects
+            "shadow",
+            "shadow-",
+            "opacity-",
+            "ring-",
+            "ring-",
+            "drop-shadow-",
+            // Filters
+            "blur-",
+            "brightness-",
+            "contrast-",
+            "grayscale",
+            "invert",
+            "saturate-",
+            "sepia",
+            "hue-rotate-",
+            "filter",
+            "backdrop-",
+            // Transforms
+            "transform",
+            "rotate-",
+            "scale-",
+            "translate-",
+            "skew-",
+            "origin-",
+            // Transitions
+            "transition",
+            "duration-",
+            "ease-",
+            "delay-",
+            "animate-",
+            // Interactivity
+            "cursor-",
+            "select-",
+            "pointer-events-",
+            "resize",
+            "scroll-",
+            "snap-",
+            "touch-",
+            "will-change-",
+        ];
+
+        // Check for exact matches or prefix matches
+        common_prefixes.iter().any(|prefix| {
+            if prefix.ends_with('-') {
+                token.starts_with(prefix)
+            } else {
+                token == *prefix
+            }
+        })
     }
 
     fn is_static_template_literal(&self, template: &TemplateLiteral) -> bool {
@@ -322,35 +550,51 @@ impl<'a> Visit<'a> for ClassExtractor<'a> {
     }
 
     fn visit_array_expression(&mut self, array: &ArrayExpression<'a>) {
-        // Collect all string literals from the array
+        // Collect string literals from the array and check if they look like classes
         let mut string_elements = Vec::new();
-        let mut all_strings = true;
+        let mut tailwind_elements = Vec::new();
         let mut quote_style = QuoteStyle::Double; // Default
+        let mut total_strings = 0;
 
         for element in &array.elements {
             match element {
                 ArrayExpressionElement::StringLiteral(string_lit) => {
                     let content = self.extract_class_string_content(string_lit.span);
+                    string_elements.push(content.clone());
+                    total_strings += 1;
+
+                    // Use the quote style from the first element for consistency
+                    if total_strings == 1 {
+                        quote_style = self.detect_quote_style(string_lit.span);
+                    }
+
+                    // Check if this specific element looks like Tailwind classes
                     if self.looks_like_tailwind_classes(&content) {
-                        string_elements.push(content);
-                        // Use the quote style from the first element for consistency
-                        if string_elements.len() == 1 {
-                            quote_style = self.detect_quote_style(string_lit.span);
-                        }
-                    } else {
-                        all_strings = false;
-                        break;
+                        tailwind_elements.push(content);
                     }
                 }
                 _ => {
-                    all_strings = false;
-                    break;
+                    // Non-string elements make this not a pure class array
+                    // Continue normal visiting for mixed arrays
+                    for element in &array.elements {
+                        if let Some(expr) = element.as_expression() {
+                            self.visit_expression(expr);
+                        }
+                    }
+                    return;
                 }
             }
         }
 
-        // If all elements are Tailwind class strings, treat as a sortable array
-        if all_strings && !string_elements.is_empty() {
+        // If all elements are strings AND most look like Tailwind classes, process as array
+        // We allow some non-Tailwind classes (like custom classes) as long as most are recognizable
+        let tailwind_ratio = if total_strings > 0 {
+            tailwind_elements.len() as f32 / total_strings as f32
+        } else {
+            0.0
+        };
+
+        if total_strings > 0 && (tailwind_ratio >= 0.5 || string_elements.len() == 1) {
             let span_key = (array.span.start as usize, array.span.end as usize);
 
             // Skip if already processed
@@ -370,13 +614,6 @@ impl<'a> Visit<'a> for ClassExtractor<'a> {
                     },
                 );
                 self.matches.push(class_match);
-            }
-        } else {
-            // For mixed arrays or non-Tailwind arrays, continue normal visiting
-            for element in &array.elements {
-                if let Some(expr) = element.as_expression() {
-                    self.visit_expression(expr);
-                }
             }
         }
     }

@@ -640,8 +640,109 @@ export function Button({ className, ...props }) {
 }
 
 const baseStyles = `p-2 text-sm border-2 rounded`;
-const variants = ['hover:bg-gray-100', 'focus:ring-2', 'active:bg-gray-200'];
+const variants = ['hover:bg-gray-100', 'active:bg-gray-200', 'focus:ring-2'];
 "#;
+
+        let result = processor
+            .process_content(input, "test.tsx", ProcessOptions::default())
+            .unwrap();
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_css_calc_expressions_not_processed() {
+        let processor = FileProcessor::new();
+
+        // CSS calc() expressions should remain untouched
+        let input =
+            r#"const style = { width: 'calc(100vh - 40px)', height: 'calc(100% - 2rem)' };"#;
+        let result = processor
+            .process_content(input, "test.tsx", ProcessOptions::default())
+            .unwrap();
+        assert_eq!(
+            result, input,
+            "CSS calc() expressions should not be processed"
+        );
+    }
+
+    #[test]
+    fn test_react_directives_not_processed() {
+        let processor = FileProcessor::new();
+
+        // React directives should remain untouched
+        let input = r#"'use client';
+const Component = () => <div>Hello</div>;"#;
+        let result = processor
+            .process_content(input, "test.tsx", ProcessOptions::default())
+            .unwrap();
+        assert_eq!(result, input, "React directives should not be processed");
+    }
+
+    #[test]
+    fn test_urls_and_paths_not_processed() {
+        let processor = FileProcessor::new();
+
+        // URLs and paths should remain untouched
+        let input = r#"const url = 'https://example.com/path';
+const path = './components/Button';
+const absolute = '/home/user/file';"#;
+        let result = processor
+            .process_content(input, "test.tsx", ProcessOptions::default())
+            .unwrap();
+        assert_eq!(result, input, "URLs and paths should not be processed");
+    }
+
+    #[test]
+    fn test_mixed_real_and_fake_classes() {
+        let processor = FileProcessor::new();
+
+        // Only actual Tailwind classes should be sorted
+        let input = r#"const Component = () => (
+  <div 
+    className="p-4 flex bg-red-500"
+    style={{ width: 'calc(100vh - 40px)' }}
+    data-testid="use client test"
+  >
+    Content
+  </div>
+);"#;
+        let expected = r#"const Component = () => (
+  <div 
+    className="flex p-4 bg-red-500"
+    style={{ width: 'calc(100vh - 40px)' }}
+    data-testid="use client test"
+  >
+    Content
+  </div>
+);"#;
+        let result = processor
+            .process_content(input, "test.tsx", ProcessOptions::default())
+            .unwrap();
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_cva_base_classes_array_sorting() {
+        let processor = FileProcessor::new();
+
+        // CVA base classes array should be sorted
+        let input = r#"const alertVariants = cva(['@container', 'relative', 'w-full', 'rounded-lg', 'px-2', 'flex', 'gap-2', 'py-3'], {
+  variants: {
+    status: {
+      primary: 'bg-default-muted-background border-l-primary-stroke',
+      success: 'bg-success-muted-background border-l-success-stroke',
+    },
+  },
+});"#;
+
+        let expected = r#"const alertVariants = cva(['relative', 'flex', 'gap-2', 'px-2', 'py-3', 'w-full', 'rounded-lg', '@container'], {
+  variants: {
+    status: {
+      primary: 'bg-default-muted-background border-l-primary-stroke',
+      success: 'bg-success-muted-background border-l-success-stroke',
+    },
+  },
+});"#;
 
         let result = processor
             .process_content(input, "test.tsx", ProcessOptions::default())
@@ -773,8 +874,8 @@ const variants = ['hover:bg-gray-100', 'focus:ring-2', 'active:bg-gray-200'];
       lg: ['gap-4', 'p-6', 'text-lg']
     },
     variant: {
-      primary: ['bg-blue-500', 'text-white', 'hover:bg-blue-600'],
-      secondary: ['bg-gray-200', 'text-gray-900', 'hover:bg-gray-300']
+      primary: ['text-white', 'bg-blue-500', 'hover:bg-blue-600'],
+      secondary: ['text-gray-900', 'bg-gray-200', 'hover:bg-gray-300']
     }
   }
 })"#;
@@ -852,7 +953,7 @@ const variants = ['hover:bg-gray-100', 'focus:ring-2', 'active:bg-gray-200'];
     {
       size: 'sm',
       state: 'active',
-      class: ['font-bold', 'shadow-sm', 'border-2']
+      class: ['font-bold', 'border-2', 'shadow-sm']
     }
   ]
 })"#;
