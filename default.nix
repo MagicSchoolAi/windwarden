@@ -17,6 +17,7 @@ let
       claude-code
     ];
     rust = [
+      clippy
       cargo
       clang
       rust-analyzer

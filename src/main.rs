@@ -1,17 +1,17 @@
-use clap::{Parser, CommandFactory};
+use clap::{CommandFactory, Parser};
 use std::io;
+use std::path::PathBuf;
 use std::process;
 use std::time::Instant;
-use std::path::PathBuf;
 use windwarden::cli::{Cli, Commands, ConfigAction, OperationMode, ProcessingMode, Shell};
-use windwarden::config::{ConfigManager, Config};
-use windwarden::file_processor::{FileDiscoveryConfig, FileProcessingPipeline, FileDiscovery};
+use windwarden::config::{Config, ConfigManager};
+use windwarden::file_processor::{FileDiscovery, FileDiscoveryConfig, FileProcessingPipeline};
 use windwarden::output::{OutputFormatter, ProgressReporter, ProgressTracker};
 use windwarden::{process_file, process_stdin, ProcessOptions, WindWardenError};
 
 fn main() {
     let cli = Cli::parse();
-    
+
     // Load configuration
     let config_manager = match load_configuration(&cli) {
         Ok(manager) => manager,
@@ -22,7 +22,11 @@ fn main() {
     };
 
     let result = match &cli.command {
-        Some(Commands::Process { file, dry_run, write }) => {
+        Some(Commands::Process {
+            file,
+            dry_run,
+            write,
+        }) => {
             // Legacy single file processing
             let options = ProcessOptions {
                 dry_run: *dry_run,
@@ -42,44 +46,59 @@ fn main() {
                 }
             }
         }
-        
-        Some(Commands::Format { 
-            paths, 
-            mode, 
-            processing, 
-            threads, 
-            extensions, 
-            exclude, 
-            max_depth, 
-            follow_links, 
+
+        Some(Commands::Format {
+            paths,
+            mode,
+            processing,
+            threads,
+            extensions,
+            exclude,
+            max_depth,
+            follow_links,
             stats,
             progress,
-            diff
-        }) => {
-            handle_format_command(&config_manager, paths, *mode, *processing, *threads, extensions, exclude, *max_depth, *follow_links, *stats, *progress, *diff)
-        }
-        
-        Some(Commands::Check { 
-            paths, 
-            processing, 
-            threads, 
-            extensions, 
-            exclude, 
+            diff,
+        }) => handle_format_command(
+            &config_manager,
+            paths,
+            *mode,
+            *processing,
+            *threads,
+            extensions,
+            exclude,
+            *max_depth,
+            *follow_links,
+            *stats,
+            *progress,
+            *diff,
+        ),
+
+        Some(Commands::Check {
+            paths,
+            processing,
+            threads,
+            extensions,
+            exclude,
             stats,
             progress,
-            diff
-        }) => {
-            handle_check_command(&config_manager, paths, *processing, *threads, extensions, exclude, *stats, *progress, *diff)
-        }
-        
-        Some(Commands::Config { action }) => {
-            handle_config_command(action, &config_manager)
-        }
-        
-        Some(Commands::Completions { shell }) => {
-            handle_completions_command(*shell)
-        }
-        
+            diff,
+        }) => handle_check_command(
+            &config_manager,
+            paths,
+            *processing,
+            *threads,
+            extensions,
+            exclude,
+            *stats,
+            *progress,
+            *diff,
+        ),
+
+        Some(Commands::Config { action }) => handle_config_command(action, &config_manager),
+
+        Some(Commands::Completions { shell }) => handle_completions_command(*shell),
+
         None => {
             if cli.stdin {
                 // Legacy stdin processing
@@ -137,44 +156,56 @@ fn handle_format_command(
     show_diff: bool,
 ) -> Result<i32, Box<dyn std::error::Error>> {
     let start_time = Instant::now();
-    
+
     // Build file discovery config
     let mut config = FileDiscoveryConfig::default();
-    
+
     if let Some(exts) = extensions {
         config.extensions = exts.clone();
     }
-    
+
     if let Some(patterns) = exclude {
         config.exclude_patterns.extend(patterns.clone());
     }
-    
+
     config.max_depth = max_depth;
     config.follow_links = follow_links;
-    
+
     // Create processing pipeline
     let pipeline_mode = match (processing_mode, threads) {
         (_, Some(n)) => windwarden::file_processor::ProcessingMode::ParallelWithThreads(n),
-        (ProcessingMode::Sequential, None) => windwarden::file_processor::ProcessingMode::Sequential,
+        (ProcessingMode::Sequential, None) => {
+            windwarden::file_processor::ProcessingMode::Sequential
+        }
         (ProcessingMode::Parallel, None) => windwarden::file_processor::ProcessingMode::Parallel,
     };
-    
-    let pipeline = FileProcessingPipeline::new_with_windwarden_config(config.clone(), config_manager.config(), pipeline_mode)?;
-    
+
+    let pipeline = FileProcessingPipeline::new_with_windwarden_config(
+        config.clone(),
+        config_manager.config(),
+        pipeline_mode,
+    )?;
+
     // Validate inputs
     if paths.is_empty() {
-        return Err(Box::new(WindWardenError::config_error("No paths specified")));
+        return Err(Box::new(WindWardenError::config_error(
+            "No paths specified",
+        )));
     }
-    
+
     if let Some(thread_count) = threads {
         if thread_count == 0 {
-            return Err(Box::new(WindWardenError::config_error("Thread count must be greater than 0")));
+            return Err(Box::new(WindWardenError::config_error(
+                "Thread count must be greater than 0",
+            )));
         }
         if thread_count > 1024 {
-            return Err(Box::new(WindWardenError::config_error("Thread count cannot exceed 1024")));
+            return Err(Box::new(WindWardenError::config_error(
+                "Thread count cannot exceed 1024",
+            )));
         }
     }
-    
+
     // Set up process options based on operation mode
     let process_options = match mode {
         OperationMode::Check => ProcessOptions {
@@ -193,7 +224,7 @@ fn handle_format_command(
             check_formatted: true,
         },
     };
-    
+
     // Set up progress reporting if requested
     let (results, duration) = if show_progress {
         // First discover files to get count for progress reporting
@@ -201,20 +232,24 @@ fn handle_format_command(
             let temp_discovery = FileDiscovery::new(config.clone())?;
             temp_discovery.discover_files(paths)?
         };
-        
+
         if discovered_files.len() > 5 {
             // Show progress for larger file counts
             let progress_reporter = ProgressReporter::new(discovered_files.len(), true);
             let progress_tracker = ProgressTracker::new(progress_reporter.get_counter());
-            
+
             eprintln!("Processing {} files...", discovered_files.len());
-            
-            let results = pipeline.process_files_with_progress(paths, process_options, Some(progress_tracker))?;
+
+            let results = pipeline.process_files_with_progress(
+                paths,
+                process_options,
+                Some(progress_tracker),
+            )?;
             let duration = start_time.elapsed();
-            
+
             // Show final progress
             progress_reporter.finish();
-            
+
             (results, duration)
         } else {
             let results = pipeline.process_files(paths, process_options)?;
@@ -226,7 +261,7 @@ fn handle_format_command(
         let duration = start_time.elapsed();
         (results, duration)
     };
-    
+
     // Format and display results
     let formatter = OutputFormatter::new(show_stats).with_diff(show_diff);
     let output = match mode {
@@ -234,9 +269,9 @@ fn handle_format_command(
         OperationMode::Write => formatter.format_write_results(&results, Some(duration)),
         OperationMode::Verify => formatter.format_verify_results(&results, Some(duration)),
     };
-    
+
     println!("{}", output);
-    
+
     Ok(formatter.get_exit_code(&mode, &results))
 }
 
@@ -260,7 +295,7 @@ fn handle_check_command(
         threads,
         extensions,
         exclude,
-        None, // max_depth
+        None,  // max_depth
         false, // follow_links
         show_stats,
         show_progress,
@@ -274,7 +309,7 @@ fn load_configuration(cli: &Cli) -> Result<ConfigManager, WindWardenError> {
             // Load from specific path
             if !config_path.exists() {
                 return Err(WindWardenError::config_error(format!(
-                    "Configuration file not found: {}", 
+                    "Configuration file not found: {}",
                     config_path.display()
                 )));
             }
@@ -284,16 +319,16 @@ fn load_configuration(cli: &Cli) -> Result<ConfigManager, WindWardenError> {
         }
         None => {
             // Search for config file in current directory and parents
-            let current_dir = std::env::current_dir()
-                .map_err(|e| WindWardenError::from_io_error(e, None))?;
+            let current_dir =
+                std::env::current_dir().map_err(|e| WindWardenError::from_io_error(e, None))?;
             ConfigManager::load_from_directory(&current_dir)
         }
     }
 }
 
 fn handle_config_command(
-    action: &ConfigAction, 
-    config_manager: &ConfigManager
+    action: &ConfigAction,
+    config_manager: &ConfigManager,
 ) -> Result<i32, Box<dyn std::error::Error>> {
     match action {
         ConfigAction::Init { path } => {
@@ -302,7 +337,7 @@ fn handle_config_command(
                 eprintln!("Use --force to overwrite (not implemented yet)");
                 return Ok(1);
             }
-            
+
             ConfigManager::create_default_config(path)?;
             println!("Created default configuration file: {}", path.display());
             println!("\nTo customize your configuration, edit the file and modify settings like:");
@@ -316,12 +351,13 @@ fn handle_config_command(
             println!("  [{}]", categories.join(", "));
             Ok(0)
         }
-        
+
         ConfigAction::Show => {
             let config = config_manager.config();
-            let json = serde_json::to_string_pretty(config)
-                .map_err(|e| WindWardenError::config_error(format!("Failed to serialize config: {}", e)))?;
-            
+            let json = serde_json::to_string_pretty(config).map_err(|e| {
+                WindWardenError::config_error(format!("Failed to serialize config: {}", e))
+            })?;
+
             println!("Current configuration:");
             if let Some(path) = config_manager.config_path() {
                 println!("Loaded from: {}", path.display());
@@ -331,7 +367,7 @@ fn handle_config_command(
             println!("\n{}", json);
             Ok(0)
         }
-        
+
         ConfigAction::Validate { path } => {
             let config_path = match path {
                 Some(p) => p.clone(),
@@ -340,12 +376,12 @@ fn handle_config_command(
                         p.clone()
                     } else {
                         return Err(Box::new(WindWardenError::config_error(
-                            "No configuration file specified and none found"
+                            "No configuration file specified and none found",
                         )));
                     }
                 }
             };
-            
+
             match ConfigManager::load_config_file(&config_path) {
                 Ok(_) => {
                     println!("✓ Configuration file is valid: {}", config_path.display());
@@ -364,7 +400,7 @@ fn handle_config_command(
 fn handle_completions_command(shell: Shell) -> Result<i32, Box<dyn std::error::Error>> {
     let mut cmd = Cli::command();
     let app_name = cmd.get_name().to_string();
-    
+
     match shell {
         Shell::Bash => {
             clap_complete::generate(
@@ -399,6 +435,6 @@ fn handle_completions_command(shell: Shell) -> Result<i32, Box<dyn std::error::E
             );
         }
     }
-    
+
     Ok(0)
 }

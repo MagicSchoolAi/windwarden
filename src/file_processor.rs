@@ -1,12 +1,12 @@
-use globset::{Glob, GlobSet, GlobSetBuilder};
-use std::path::{Path, PathBuf};
-use std::fs;
-use walkdir::WalkDir;
-use rayon::prelude::*;
-use crate::{Result, WindWardenError, ProcessOptions};
-use crate::processor::FileProcessor as ContentProcessor;
-use crate::output::ProgressTracker;
 use crate::config::Config;
+use crate::output::ProgressTracker;
+use crate::processor::FileProcessor as ContentProcessor;
+use crate::{ProcessOptions, Result, WindWardenError};
+use globset::{Glob, GlobSet, GlobSetBuilder};
+use rayon::prelude::*;
+use std::fs;
+use std::path::{Path, PathBuf};
+use walkdir::WalkDir;
 
 /// Configuration for file discovery
 #[derive(Debug, Clone)]
@@ -26,7 +26,7 @@ impl Default for FileDiscoveryConfig {
         Self {
             extensions: vec![
                 "tsx".to_string(),
-                "jsx".to_string(), 
+                "jsx".to_string(),
                 "ts".to_string(),
                 "js".to_string(),
             ],
@@ -52,7 +52,7 @@ pub struct FileDiscovery {
 impl FileDiscovery {
     pub fn new(config: FileDiscoveryConfig) -> Result<Self> {
         let exclude_set = Self::build_exclude_set(&config.exclude_patterns)?;
-        
+
         Ok(Self {
             config,
             exclude_set,
@@ -76,7 +76,7 @@ impl FileDiscovery {
             }
 
             let path = Path::new(path_str);
-            
+
             if !path.exists() {
                 return Err(WindWardenError::file_not_found(path_str));
             }
@@ -100,7 +100,7 @@ impl FileDiscovery {
     /// Discover files in a directory recursively
     fn discover_files_in_directory(&self, dir: &Path) -> Result<Vec<PathBuf>> {
         let mut files = Vec::new();
-        
+
         let walkdir = WalkDir::new(dir)
             .follow_links(self.config.follow_links)
             .max_depth(self.config.max_depth.unwrap_or(usize::MAX))
@@ -108,9 +108,9 @@ impl FileDiscovery {
             .filter_entry(|e| !self.is_excluded(e.path()));
 
         for entry in walkdir {
-            let entry = entry.map_err(|e| WindWardenError::Io(
-                std::io::Error::new(std::io::ErrorKind::Other, e)
-            ))?;
+            let entry = entry.map_err(|e| {
+                WindWardenError::Io(std::io::Error::new(std::io::ErrorKind::Other, e))
+            })?;
 
             if entry.file_type().is_file() && self.should_process_file(entry.path()) {
                 files.push(entry.path().to_path_buf());
@@ -124,10 +124,10 @@ impl FileDiscovery {
     fn discover_files_by_glob(&self, pattern: &str) -> Result<Vec<PathBuf>> {
         let glob = Glob::new(pattern)
             .map_err(|e| WindWardenError::glob_pattern_error(pattern, e.to_string()))?;
-        
+
         let matcher = glob.compile_matcher();
         let mut files = Vec::new();
-        
+
         // Find all files that match the glob pattern
         // For now, we'll walk the current directory and match
         // In a more sophisticated implementation, we could optimize this
@@ -138,16 +138,16 @@ impl FileDiscovery {
             .filter_entry(|e| !self.is_excluded(e.path()));
 
         for entry in walkdir {
-            let entry = entry.map_err(|e| WindWardenError::Io(
-                std::io::Error::new(std::io::ErrorKind::Other, e)
-            ))?;
+            let entry = entry.map_err(|e| {
+                WindWardenError::Io(std::io::Error::new(std::io::ErrorKind::Other, e))
+            })?;
 
             let path = entry.path();
-            
+
             if entry.file_type().is_file() && self.should_process_file(path) {
                 // Try matching both the full path and just the relative path without "./"
                 let relative_path = path.strip_prefix("./").unwrap_or(path);
-                
+
                 if matcher.is_match(path) || matcher.is_match(relative_path) {
                     files.push(path.to_path_buf());
                 }
@@ -173,12 +173,17 @@ impl FileDiscovery {
             if let std::path::Component::Normal(name) = component {
                 let name_str = name.to_string_lossy();
                 // Check common directory names to exclude
-                if name_str == "node_modules" || name_str == "dist" || name_str == "build" || name_str == "coverage" || name_str == ".git" {
+                if name_str == "node_modules"
+                    || name_str == "dist"
+                    || name_str == "build"
+                    || name_str == "coverage"
+                    || name_str == ".git"
+                {
                     return true;
                 }
             }
         }
-        
+
         // Also check the full path against patterns
         let is_excluded = self.exclude_set.is_match(path);
         is_excluded
@@ -187,15 +192,19 @@ impl FileDiscovery {
     /// Build the exclude glob set from patterns
     fn build_exclude_set(patterns: &[String]) -> Result<GlobSet> {
         let mut builder = GlobSetBuilder::new();
-        
+
         for pattern in patterns {
             let glob = Glob::new(pattern)
                 .map_err(|e| WindWardenError::glob_pattern_error(pattern, e.to_string()))?;
             builder.add(glob);
         }
 
-        builder.build()
-            .map_err(|e| WindWardenError::glob_pattern_error("exclude pattern set", format!("Failed to build exclude pattern set: {}", e)))
+        builder.build().map_err(|e| {
+            WindWardenError::glob_pattern_error(
+                "exclude pattern set",
+                format!("Failed to build exclude pattern set: {}", e),
+            )
+        })
     }
 }
 
@@ -211,7 +220,12 @@ pub struct FileProcessingResult {
 }
 
 impl FileProcessingResult {
-    pub fn success(file_path: PathBuf, changes_made: bool, original_content: String, processed_content: String) -> Self {
+    pub fn success(
+        file_path: PathBuf,
+        changes_made: bool,
+        original_content: String,
+        processed_content: String,
+    ) -> Self {
         Self {
             file_path,
             success: true,
@@ -257,7 +271,7 @@ impl BatchProcessingResults {
 
     pub fn add_result(&mut self, result: FileProcessingResult) {
         self.total_files += 1;
-        
+
         if result.success {
             self.processed_files += 1;
             if result.changes_made {
@@ -266,7 +280,7 @@ impl BatchProcessingResults {
         } else {
             self.failed_files += 1;
         }
-        
+
         self.results.push(result);
     }
 
@@ -309,7 +323,10 @@ impl FileProcessingPipeline {
         Self::new_with_mode(config, ProcessingMode::default())
     }
 
-    pub fn new_with_mode(config: FileDiscoveryConfig, processing_mode: ProcessingMode) -> Result<Self> {
+    pub fn new_with_mode(
+        config: FileDiscoveryConfig,
+        processing_mode: ProcessingMode,
+    ) -> Result<Self> {
         Ok(Self {
             discovery: FileDiscovery::new(config)?,
             content_processor: ContentProcessor::new(),
@@ -317,11 +334,11 @@ impl FileProcessingPipeline {
             windwarden_config: None,
         })
     }
-    
+
     pub fn new_with_windwarden_config(
-        file_config: FileDiscoveryConfig, 
+        file_config: FileDiscoveryConfig,
         windwarden_config: &Config,
-        processing_mode: ProcessingMode
+        processing_mode: ProcessingMode,
     ) -> Result<Self> {
         Ok(Self {
             discovery: FileDiscovery::new(file_config)?,
@@ -332,64 +349,71 @@ impl FileProcessingPipeline {
     }
 
     /// Process multiple files or paths using the configured processing mode
-    pub fn process_files(&self, paths: &[String], options: ProcessOptions) -> Result<BatchProcessingResults> {
+    pub fn process_files(
+        &self,
+        paths: &[String],
+        options: ProcessOptions,
+    ) -> Result<BatchProcessingResults> {
         self.process_files_with_progress(paths, options, None)
     }
 
     /// Process multiple files with optional progress tracking
     pub fn process_files_with_progress(
-        &self, 
-        paths: &[String], 
+        &self,
+        paths: &[String],
         options: ProcessOptions,
-        progress_tracker: Option<ProgressTracker>
+        progress_tracker: Option<ProgressTracker>,
     ) -> Result<BatchProcessingResults> {
         // Discover all files to process
         let files = self.discovery.discover_files(paths)?;
-        
+
         match self.processing_mode {
-            ProcessingMode::Sequential => self.process_files_sequential(files, options, progress_tracker),
-            ProcessingMode::Parallel => self.process_files_parallel(files, options, progress_tracker),
-            ProcessingMode::ParallelWithThreads(num_threads) => {
-                self.process_files_parallel_with_threads(files, options, num_threads, progress_tracker)
+            ProcessingMode::Sequential => {
+                self.process_files_sequential(files, options, progress_tracker)
             }
+            ProcessingMode::Parallel => {
+                self.process_files_parallel(files, options, progress_tracker)
+            }
+            ProcessingMode::ParallelWithThreads(num_threads) => self
+                .process_files_parallel_with_threads(files, options, num_threads, progress_tracker),
         }
     }
 
     /// Process files sequentially (single-threaded)
     fn process_files_sequential(
-        &self, 
-        files: Vec<PathBuf>, 
+        &self,
+        files: Vec<PathBuf>,
         options: ProcessOptions,
-        progress_tracker: Option<ProgressTracker>
+        progress_tracker: Option<ProgressTracker>,
     ) -> Result<BatchProcessingResults> {
         let mut results = BatchProcessingResults::new();
-        
+
         // Process each file sequentially
         for file_path in files {
             let result = self.process_single_file(&file_path, &options);
             results.add_result(result);
-            
+
             // Update progress if tracker is provided
             if let Some(ref tracker) = progress_tracker {
                 tracker.increment();
             }
         }
-        
+
         Ok(results)
     }
 
     /// Process files in parallel using all available CPU cores
     fn process_files_parallel(
-        &self, 
-        files: Vec<PathBuf>, 
+        &self,
+        files: Vec<PathBuf>,
         options: ProcessOptions,
-        progress_tracker: Option<ProgressTracker>
+        progress_tracker: Option<ProgressTracker>,
     ) -> Result<BatchProcessingResults> {
         let mut results = BatchProcessingResults::new();
-        
+
         // Clone the config outside the parallel block to avoid Sync issues
         let config_clone = self.windwarden_config.clone();
-        
+
         // Process files in parallel and collect results
         // Each thread gets its own ContentProcessor to avoid Sync issues with Oxc allocator
         let file_results: Vec<FileProcessingResult> = files
@@ -400,44 +424,53 @@ impl FileProcessingPipeline {
                 } else {
                     ContentProcessor::new()
                 };
-                let result = Self::process_single_file_with_processor(&thread_processor, file_path, &options);
-                
+                let result = Self::process_single_file_with_processor(
+                    &thread_processor,
+                    file_path,
+                    &options,
+                );
+
                 // Update progress if tracker is provided
                 if let Some(ref tracker) = progress_tracker {
                     tracker.increment();
                 }
-                
+
                 result
             })
             .collect();
-        
+
         // Add all results to the batch
         for result in file_results {
             results.add_result(result);
         }
-        
+
         Ok(results)
     }
 
     /// Process files in parallel with a specific number of threads
     fn process_files_parallel_with_threads(
-        &self, 
-        files: Vec<PathBuf>, 
-        options: ProcessOptions, 
+        &self,
+        files: Vec<PathBuf>,
+        options: ProcessOptions,
         num_threads: usize,
-        progress_tracker: Option<ProgressTracker>
+        progress_tracker: Option<ProgressTracker>,
     ) -> Result<BatchProcessingResults> {
         // Configure Rayon thread pool
         let pool = rayon::ThreadPoolBuilder::new()
             .num_threads(num_threads)
             .build()
-            .map_err(|e| WindWardenError::thread_pool_error(format!("Failed to create thread pool with {} threads: {}", num_threads, e)))?;
+            .map_err(|e| {
+                WindWardenError::thread_pool_error(format!(
+                    "Failed to create thread pool with {} threads: {}",
+                    num_threads, e
+                ))
+            })?;
 
         let mut results = BatchProcessingResults::new();
-        
+
         // Clone the config outside the parallel block to avoid Sync issues
         let config_clone = self.windwarden_config.clone();
-        
+
         // Process files in parallel with the configured thread pool
         // Each thread gets its own ContentProcessor to avoid Sync issues with Oxc allocator
         let file_results: Vec<FileProcessingResult> = pool.install(|| {
@@ -450,33 +483,45 @@ impl FileProcessingPipeline {
                     } else {
                         ContentProcessor::new()
                     };
-                    let result = Self::process_single_file_with_processor(&thread_processor, file_path, &options);
-                    
+                    let result = Self::process_single_file_with_processor(
+                        &thread_processor,
+                        file_path,
+                        &options,
+                    );
+
                     // Update progress if tracker is provided
                     if let Some(ref tracker) = progress_tracker {
                         tracker.increment();
                     }
-                    
+
                     result
                 })
                 .collect()
         });
-        
+
         // Add all results to the batch
         for result in file_results {
             results.add_result(result);
         }
-        
+
         Ok(results)
     }
 
     /// Process a single file and return detailed result
-    fn process_single_file(&self, file_path: &Path, options: &ProcessOptions) -> FileProcessingResult {
+    fn process_single_file(
+        &self,
+        file_path: &Path,
+        options: &ProcessOptions,
+    ) -> FileProcessingResult {
         Self::process_single_file_with_processor(&self.content_processor, file_path, options)
     }
 
     /// Process a single file with a specific processor (for parallel processing)
-    fn process_single_file_with_processor(processor: &ContentProcessor, file_path: &Path, options: &ProcessOptions) -> FileProcessingResult {
+    fn process_single_file_with_processor(
+        processor: &ContentProcessor,
+        file_path: &Path,
+        options: &ProcessOptions,
+    ) -> FileProcessingResult {
         // Read file content
         let original_content = match fs::read_to_string(file_path) {
             Ok(content) => content,
@@ -494,32 +539,43 @@ impl FileProcessingPipeline {
                     }
                     err => format!("Failed to read file {}: {}", path_str, err),
                 };
-                
+
                 return FileProcessingResult::error(file_path.to_path_buf(), error_msg);
             }
         };
 
         // Process content
         let file_path_str = file_path.to_string_lossy();
-        let processed_content = match processor.process_content(&original_content, &file_path_str, options.clone()) {
-            Ok(content) => content,
-            Err(e) => {
-                let error_msg = match &e {
-                    WindWardenError::ParseError { file, line, message } => {
-                        format!("Parse error in {} at line {}: {}", file, line, message)
-                    }
-                    WindWardenError::SortError { context, message } => {
-                        format!("Sort error in {}: {}", context, message)
-                    }
-                    WindWardenError::UnsupportedFileType { extension, supported } => {
-                        format!("Unsupported file type .{} (supported: {})", extension, supported)
-                    }
-                    _ => format!("Processing failed: {}", e),
-                };
-                
-                return FileProcessingResult::error(file_path.to_path_buf(), error_msg);
-            }
-        };
+        let processed_content =
+            match processor.process_content(&original_content, &file_path_str, options.clone()) {
+                Ok(content) => content,
+                Err(e) => {
+                    let error_msg = match &e {
+                        WindWardenError::ParseError {
+                            file,
+                            line,
+                            message,
+                        } => {
+                            format!("Parse error in {} at line {}: {}", file, line, message)
+                        }
+                        WindWardenError::SortError { context, message } => {
+                            format!("Sort error in {}: {}", context, message)
+                        }
+                        WindWardenError::UnsupportedFileType {
+                            extension,
+                            supported,
+                        } => {
+                            format!(
+                                "Unsupported file type .{} (supported: {})",
+                                extension, supported
+                            )
+                        }
+                        _ => format!("Processing failed: {}", e),
+                    };
+
+                    return FileProcessingResult::error(file_path.to_path_buf(), error_msg);
+                }
+            };
 
         // Determine if changes were made
         let changes_made = if options.check_formatted {
@@ -531,7 +587,9 @@ impl FileProcessingPipeline {
                 check_formatted: false,
             };
             match processor.process_content(&original_content, &file_path_str, temp_options) {
-                Ok(temp_processed) => original_content != temp_processed && !temp_processed.is_empty(),
+                Ok(temp_processed) => {
+                    original_content != temp_processed && !temp_processed.is_empty()
+                }
                 Err(_) => false, // If processing fails, assume no changes
             }
         } else {
@@ -543,7 +601,7 @@ impl FileProcessingPipeline {
             file_path.to_path_buf(),
             changes_made,
             original_content,
-            processed_content
+            processed_content,
         )
     }
 
@@ -586,13 +644,13 @@ mod tests {
 
     fn create_test_files(temp_dir: &TempDir) -> Result<()> {
         let base = temp_dir.path();
-        
+
         // Create directory structure
         fs::create_dir_all(base.join("src/components"))?;
         fs::create_dir_all(base.join("src/pages"))?;
         fs::create_dir_all(base.join("node_modules/some-package"))?;
         fs::create_dir_all(base.join("dist"))?;
-        
+
         // Create test files
         fs::write(base.join("src/App.tsx"), "// test tsx")?;
         fs::write(base.join("src/App.jsx"), "// test jsx")?;
@@ -602,9 +660,12 @@ mod tests {
         fs::write(base.join("src/pages/About.js"), "// about")?;
         fs::write(base.join("package.json"), "{}")?;
         fs::write(base.join("README.md"), "# readme")?;
-        fs::write(base.join("node_modules/some-package/index.js"), "// node_modules")?;
+        fs::write(
+            base.join("node_modules/some-package/index.js"),
+            "// node_modules",
+        )?;
         fs::write(base.join("dist/bundle.js"), "// dist")?;
-        
+
         Ok(())
     }
 
@@ -612,32 +673,34 @@ mod tests {
     fn test_discover_files_in_directory() {
         let temp_dir = TempDir::new().unwrap();
         create_test_files(&temp_dir).unwrap();
-        
+
         let config = FileDiscoveryConfig::default();
         let discovery = FileDiscovery::new(config).unwrap();
-        
-        let files = discovery.discover_files(&[temp_dir.path().to_string_lossy().to_string()]).unwrap();
-        
+
+        let files = discovery
+            .discover_files(&[temp_dir.path().to_string_lossy().to_string()])
+            .unwrap();
+
         // Should find TypeScript/JavaScript files but exclude node_modules and dist
         assert!(!files.is_empty());
-        
+
         // Check that we found the expected files
         let file_names: Vec<String> = files
             .iter()
             .filter_map(|p| p.file_name()?.to_str())
             .map(|s| s.to_string())
             .collect();
-        
+
         // Verify we found files and they're in the expected directories
         assert!(!files.is_empty());
-        
+
         assert!(file_names.contains(&"App.tsx".to_string()));
         assert!(file_names.contains(&"App.jsx".to_string()));
         assert!(file_names.contains(&"Button.tsx".to_string()));
         assert!(file_names.contains(&"Card.jsx".to_string()));
         assert!(file_names.contains(&"Home.ts".to_string()));
         assert!(file_names.contains(&"About.js".to_string()));
-        
+
         // Should not include non-JS/TS files or excluded directories
         assert!(!file_names.contains(&"package.json".to_string()));
         assert!(!file_names.contains(&"README.md".to_string()));
@@ -649,13 +712,15 @@ mod tests {
     fn test_discover_single_file() {
         let temp_dir = TempDir::new().unwrap();
         create_test_files(&temp_dir).unwrap();
-        
+
         let config = FileDiscoveryConfig::default();
         let discovery = FileDiscovery::new(config).unwrap();
-        
+
         let file_path = temp_dir.path().join("src/App.tsx");
-        let files = discovery.discover_files(&[file_path.to_string_lossy().to_string()]).unwrap();
-        
+        let files = discovery
+            .discover_files(&[file_path.to_string_lossy().to_string()])
+            .unwrap();
+
         assert_eq!(files.len(), 1);
         assert!(files[0].ends_with("App.tsx"));
     }
@@ -664,26 +729,28 @@ mod tests {
     fn test_custom_extensions() {
         let temp_dir = TempDir::new().unwrap();
         create_test_files(&temp_dir).unwrap();
-        
+
         let config = FileDiscoveryConfig {
             extensions: vec!["tsx".to_string()], // Only TypeScript React files
             ..Default::default()
         };
         let discovery = FileDiscovery::new(config).unwrap();
-        
-        let files = discovery.discover_files(&[temp_dir.path().to_string_lossy().to_string()]).unwrap();
-        
+
+        let files = discovery
+            .discover_files(&[temp_dir.path().to_string_lossy().to_string()])
+            .unwrap();
+
         // Should only find .tsx files
         for file in &files {
             assert!(file.extension().unwrap() == "tsx");
         }
-        
+
         let file_names: Vec<String> = files
             .iter()
             .filter_map(|p| p.file_name()?.to_str())
             .map(|s| s.to_string())
             .collect();
-        
+
         assert!(file_names.contains(&"App.tsx".to_string()));
         assert!(file_names.contains(&"Button.tsx".to_string()));
         assert!(!file_names.contains(&"App.jsx".to_string()));
@@ -694,19 +761,21 @@ mod tests {
     fn test_glob_patterns() {
         let temp_dir = TempDir::new().unwrap();
         create_test_files(&temp_dir).unwrap();
-        
+
         let config = FileDiscoveryConfig::default();
         let discovery = FileDiscovery::new(config).unwrap();
-        
+
         // Change to the temp directory for relative glob patterns
         let original_dir = std::env::current_dir().unwrap();
         std::env::set_current_dir(temp_dir.path()).unwrap();
-        
-        let files = discovery.discover_files(&["src/**/*.tsx".to_string()]).unwrap();
-        
+
+        let files = discovery
+            .discover_files(&["src/**/*.tsx".to_string()])
+            .unwrap();
+
         // Restore original directory
         std::env::set_current_dir(original_dir).unwrap();
-        
+
         // Should find only .tsx files in src/
         assert!(!files.is_empty());
         for file in &files {
@@ -719,7 +788,7 @@ mod tests {
     fn test_nonexistent_path() {
         let config = FileDiscoveryConfig::default();
         let discovery = FileDiscovery::new(config).unwrap();
-        
+
         let result = discovery.discover_files(&["/nonexistent/path".to_string()]);
         assert!(result.is_err());
     }
@@ -728,22 +797,27 @@ mod tests {
 
     fn create_test_content_files(temp_dir: &TempDir) -> Result<()> {
         let base = temp_dir.path();
-        
+
         // Create directory structure
         fs::create_dir_all(base.join("src/components"))?;
         fs::create_dir_all(base.join("src/pages"))?;
         fs::create_dir_all(base.join("node_modules/some-package"))?;
-        
+
         // Create test files with Tailwind classes that need sorting
-        fs::write(base.join("src/App.tsx"), r#"
+        fs::write(
+            base.join("src/App.tsx"),
+            r#"
 import React from "react";
 
 export function App() {
   return <div className="p-4 flex m-2 items-center">Hello</div>;
 }
-"#)?;
-        
-        fs::write(base.join("src/components/Button.tsx"), r#"
+"#,
+        )?;
+
+        fs::write(
+            base.join("src/components/Button.tsx"),
+            r#"
 export function Button() {
   return (
     <button className="p-4 bg-blue-500 text-white rounded hover:bg-blue-600">
@@ -751,10 +825,13 @@ export function Button() {
     </button>
   );
 }
-"#)?;
-        
+"#,
+        )?;
+
         // File with multiple patterns
-        fs::write(base.join("src/components/Card.jsx"), r#"
+        fs::write(
+            base.join("src/components/Card.jsx"),
+            r#"
 import { cn } from "lib/utils";
 
 export function Card() {
@@ -765,27 +842,37 @@ export function Card() {
     </div>
   );
 }
-"#)?;
-        
+"#,
+        )?;
+
         // File with already sorted classes
-        fs::write(base.join("src/pages/Home.ts"), r#"
+        fs::write(
+            base.join("src/pages/Home.ts"),
+            r#"
 const styles = "flex items-center m-2 p-4";
-"#)?;
-        
+"#,
+        )?;
+
         // File with no Tailwind classes
-        fs::write(base.join("src/pages/About.js"), r#"
+        fs::write(
+            base.join("src/pages/About.js"),
+            r#"
 function About() {
   return "About page";
 }
 
 export default About;
-"#)?;
-        
+"#,
+        )?;
+
         // Excluded file (should not be processed)
-        fs::write(base.join("node_modules/some-package/index.js"), r#"
+        fs::write(
+            base.join("node_modules/some-package/index.js"),
+            r#"
 export const classes = "p-4 flex m-2";
-"#)?;
-        
+"#,
+        )?;
+
         Ok(())
     }
 
@@ -793,39 +880,42 @@ export const classes = "p-4 flex m-2";
     fn test_file_processing_pipeline_basic() {
         let temp_dir = TempDir::new().unwrap();
         create_test_content_files(&temp_dir).unwrap();
-        
+
         let config = FileDiscoveryConfig::default();
         let pipeline = FileProcessingPipeline::new(config).unwrap();
-        
+
         let options = ProcessOptions {
             dry_run: true,
             write: false,
             check_formatted: false,
         };
-        
-        let results = pipeline.process_files(&[temp_dir.path().to_string_lossy().to_string()], options).unwrap();
-        
+
+        let results = pipeline
+            .process_files(&[temp_dir.path().to_string_lossy().to_string()], options)
+            .unwrap();
+
         // Should process TypeScript/JavaScript files but exclude node_modules
         assert!(results.total_files > 0);
         assert_eq!(results.failed_files, 0);
         assert!(results.success_rate() == 1.0);
-        
+
         // Check that we found files with changes
         assert!(results.files_with_changes > 0);
-        
+
         // Verify specific files were processed
-        let file_names: Vec<String> = results.results
+        let file_names: Vec<String> = results
+            .results
             .iter()
             .filter_map(|r| r.file_path.file_name()?.to_str())
             .map(|s| s.to_string())
             .collect();
-        
+
         assert!(file_names.contains(&"App.tsx".to_string()));
         assert!(file_names.contains(&"Button.tsx".to_string()));
         assert!(file_names.contains(&"Card.jsx".to_string()));
         assert!(file_names.contains(&"Home.ts".to_string()));
         assert!(file_names.contains(&"About.js".to_string()));
-        
+
         // Should not include excluded files
         assert!(!file_names.contains(&"index.js".to_string())); // from node_modules
     }
@@ -834,29 +924,32 @@ export const classes = "p-4 flex m-2";
     fn test_file_processing_pipeline_with_changes() {
         let temp_dir = TempDir::new().unwrap();
         create_test_content_files(&temp_dir).unwrap();
-        
+
         let config = FileDiscoveryConfig::default();
         let pipeline = FileProcessingPipeline::new(config).unwrap();
-        
+
         let options = ProcessOptions {
             dry_run: true,
             write: false,
             check_formatted: false,
         };
-        
-        let results = pipeline.process_files(&[temp_dir.path().to_string_lossy().to_string()], options).unwrap();
-        
+
+        let results = pipeline
+            .process_files(&[temp_dir.path().to_string_lossy().to_string()], options)
+            .unwrap();
+
         // Find the App.tsx result (should have changes)
-        let app_result = results.results
+        let app_result = results
+            .results
             .iter()
             .find(|r| r.file_path.file_name().unwrap() == "App.tsx")
             .unwrap();
-        
+
         assert!(app_result.success);
         assert!(app_result.changes_made);
         assert!(app_result.original_content.is_some());
         assert!(app_result.processed_content.is_some());
-        
+
         // Check that classes were actually sorted
         let processed = app_result.processed_content.as_ref().unwrap();
         assert!(processed.contains("flex items-center m-2 p-4")); // sorted order
@@ -866,27 +959,30 @@ export const classes = "p-4 flex m-2";
     fn test_file_processing_pipeline_check_mode() {
         let temp_dir = TempDir::new().unwrap();
         create_test_content_files(&temp_dir).unwrap();
-        
+
         let config = FileDiscoveryConfig::default();
         let pipeline = FileProcessingPipeline::new(config).unwrap();
-        
+
         let options = ProcessOptions {
             dry_run: false,
             write: false,
             check_formatted: true,
         };
-        
-        let results = pipeline.process_files(&[temp_dir.path().to_string_lossy().to_string()], options).unwrap();
-        
+
+        let results = pipeline
+            .process_files(&[temp_dir.path().to_string_lossy().to_string()], options)
+            .unwrap();
+
         // In check mode, files with unsorted classes should fail processing
         // Files with already sorted classes should succeed
         assert!(results.total_files > 0);
-        
+
         // Find the Home.ts result (should have no changes needed)
-        let home_result = results.results
+        let home_result = results
+            .results
             .iter()
             .find(|r| r.file_path.file_name().unwrap() == "Home.ts");
-        
+
         if let Some(home_result) = home_result {
             assert!(home_result.success);
             assert!(!home_result.changes_made);
@@ -897,24 +993,26 @@ export const classes = "p-4 flex m-2";
     fn test_file_processing_pipeline_single_file() {
         let temp_dir = TempDir::new().unwrap();
         create_test_content_files(&temp_dir).unwrap();
-        
+
         let config = FileDiscoveryConfig::default();
         let pipeline = FileProcessingPipeline::new(config).unwrap();
-        
+
         let options = ProcessOptions {
             dry_run: true,
             write: false,
             check_formatted: false,
         };
-        
+
         let file_path = temp_dir.path().join("src/App.tsx");
-        let results = pipeline.process_files(&[file_path.to_string_lossy().to_string()], options).unwrap();
-        
+        let results = pipeline
+            .process_files(&[file_path.to_string_lossy().to_string()], options)
+            .unwrap();
+
         assert_eq!(results.total_files, 1);
         assert_eq!(results.processed_files, 1);
         assert_eq!(results.failed_files, 0);
         assert_eq!(results.files_with_changes, 1);
-        
+
         let result = &results.results[0];
         assert!(result.success);
         assert!(result.changes_made);
@@ -924,32 +1022,35 @@ export const classes = "p-4 flex m-2";
     fn test_file_processing_pipeline_custom_extensions() {
         let temp_dir = TempDir::new().unwrap();
         create_test_content_files(&temp_dir).unwrap();
-        
+
         let config = FileDiscoveryConfig {
             extensions: vec!["tsx".to_string()], // Only TypeScript React files
             ..Default::default()
         };
         let pipeline = FileProcessingPipeline::new(config).unwrap();
-        
+
         let options = ProcessOptions {
             dry_run: true,
             write: false,
             check_formatted: false,
         };
-        
-        let results = pipeline.process_files(&[temp_dir.path().to_string_lossy().to_string()], options).unwrap();
-        
+
+        let results = pipeline
+            .process_files(&[temp_dir.path().to_string_lossy().to_string()], options)
+            .unwrap();
+
         // Should only process .tsx files
         for result in &results.results {
             assert!(result.file_path.extension().unwrap() == "tsx");
         }
-        
-        let file_names: Vec<String> = results.results
+
+        let file_names: Vec<String> = results
+            .results
             .iter()
             .filter_map(|r| r.file_path.file_name()?.to_str())
             .map(|s| s.to_string())
             .collect();
-        
+
         assert!(file_names.contains(&"App.tsx".to_string()));
         assert!(file_names.contains(&"Button.tsx".to_string()));
         assert!(!file_names.contains(&"Card.jsx".to_string()));
@@ -959,27 +1060,24 @@ export const classes = "p-4 flex m-2";
     #[test]
     fn test_file_processing_result_constructors() {
         let test_path = PathBuf::from("test.tsx");
-        
+
         // Test success result
         let success_result = FileProcessingResult::success(
             test_path.clone(),
             true,
             "original".to_string(),
-            "processed".to_string()
+            "processed".to_string(),
         );
-        
+
         assert!(success_result.success);
         assert!(success_result.changes_made);
         assert_eq!(success_result.original_content.unwrap(), "original");
         assert_eq!(success_result.processed_content.unwrap(), "processed");
         assert!(success_result.error.is_none());
-        
+
         // Test error result
-        let error_result = FileProcessingResult::error(
-            test_path,
-            "test error".to_string()
-        );
-        
+        let error_result = FileProcessingResult::error(test_path, "test error".to_string());
+
         assert!(!error_result.success);
         assert!(!error_result.changes_made);
         assert!(error_result.original_content.is_none());
@@ -990,28 +1088,28 @@ export const classes = "p-4 flex m-2";
     #[test]
     fn test_batch_processing_results_statistics() {
         let mut results = BatchProcessingResults::new();
-        
+
         // Add successful results
         results.add_result(FileProcessingResult::success(
             PathBuf::from("file1.tsx"),
             true,
             "original1".to_string(),
-            "processed1".to_string()
+            "processed1".to_string(),
         ));
-        
+
         results.add_result(FileProcessingResult::success(
             PathBuf::from("file2.tsx"),
             false, // no changes
             "original2".to_string(),
-            "original2".to_string()
+            "original2".to_string(),
         ));
-        
+
         // Add error result
         results.add_result(FileProcessingResult::error(
             PathBuf::from("file3.tsx"),
-            "error".to_string()
+            "error".to_string(),
         ));
-        
+
         assert_eq!(results.total_files, 3);
         assert_eq!(results.processed_files, 2);
         assert_eq!(results.files_with_changes, 1);
@@ -1024,49 +1122,62 @@ export const classes = "p-4 flex m-2";
     #[test]
     fn test_processing_mode_constructors() {
         let config = FileDiscoveryConfig::default();
-        
+
         // Test sequential pipeline
         let sequential_pipeline = FileProcessingPipeline::sequential(config.clone()).unwrap();
-        assert!(matches!(sequential_pipeline.processing_mode(), ProcessingMode::Sequential));
-        
+        assert!(matches!(
+            sequential_pipeline.processing_mode(),
+            ProcessingMode::Sequential
+        ));
+
         // Test parallel pipeline
         let parallel_pipeline = FileProcessingPipeline::parallel(config.clone()).unwrap();
-        assert!(matches!(parallel_pipeline.processing_mode(), ProcessingMode::Parallel));
-        
+        assert!(matches!(
+            parallel_pipeline.processing_mode(),
+            ProcessingMode::Parallel
+        ));
+
         // Test parallel with threads pipeline
-        let parallel_threads_pipeline = FileProcessingPipeline::parallel_with_threads(config, 4).unwrap();
-        assert!(matches!(parallel_threads_pipeline.processing_mode(), ProcessingMode::ParallelWithThreads(4)));
+        let parallel_threads_pipeline =
+            FileProcessingPipeline::parallel_with_threads(config, 4).unwrap();
+        assert!(matches!(
+            parallel_threads_pipeline.processing_mode(),
+            ProcessingMode::ParallelWithThreads(4)
+        ));
     }
 
     #[test]
     fn test_parallel_processing_basic() {
         let temp_dir = TempDir::new().unwrap();
         create_test_content_files(&temp_dir).unwrap();
-        
+
         let config = FileDiscoveryConfig::default();
         let pipeline = FileProcessingPipeline::parallel(config).unwrap();
-        
+
         let options = ProcessOptions {
             dry_run: true,
             write: false,
             check_formatted: false,
         };
-        
-        let results = pipeline.process_files(&[temp_dir.path().to_string_lossy().to_string()], options).unwrap();
-        
+
+        let results = pipeline
+            .process_files(&[temp_dir.path().to_string_lossy().to_string()], options)
+            .unwrap();
+
         // Should produce the same results as sequential processing
         assert!(results.total_files > 0);
         assert_eq!(results.failed_files, 0);
         assert!(results.success_rate() == 1.0);
         assert!(results.files_with_changes > 0);
-        
+
         // Verify specific files were processed
-        let file_names: Vec<String> = results.results
+        let file_names: Vec<String> = results
+            .results
             .iter()
             .filter_map(|r| r.file_path.file_name()?.to_str())
             .map(|s| s.to_string())
             .collect();
-        
+
         assert!(file_names.contains(&"App.tsx".to_string()));
         assert!(file_names.contains(&"Button.tsx".to_string()));
         assert!(file_names.contains(&"Card.jsx".to_string()));
@@ -1076,18 +1187,20 @@ export const classes = "p-4 flex m-2";
     fn test_parallel_with_specific_threads() {
         let temp_dir = TempDir::new().unwrap();
         create_test_content_files(&temp_dir).unwrap();
-        
+
         let config = FileDiscoveryConfig::default();
         let pipeline = FileProcessingPipeline::parallel_with_threads(config, 2).unwrap();
-        
+
         let options = ProcessOptions {
             dry_run: true,
             write: false,
             check_formatted: false,
         };
-        
-        let results = pipeline.process_files(&[temp_dir.path().to_string_lossy().to_string()], options).unwrap();
-        
+
+        let results = pipeline
+            .process_files(&[temp_dir.path().to_string_lossy().to_string()], options)
+            .unwrap();
+
         // Should produce the same results as sequential processing
         assert!(results.total_files > 0);
         assert_eq!(results.failed_files, 0);
@@ -1099,34 +1212,45 @@ export const classes = "p-4 flex m-2";
     fn test_sequential_vs_parallel_results_consistency() {
         let temp_dir = TempDir::new().unwrap();
         create_test_content_files(&temp_dir).unwrap();
-        
+
         let config = FileDiscoveryConfig::default();
         let sequential_pipeline = FileProcessingPipeline::sequential(config.clone()).unwrap();
         let parallel_pipeline = FileProcessingPipeline::parallel(config).unwrap();
-        
+
         let options = ProcessOptions {
             dry_run: true,
             write: false,
             check_formatted: false,
         };
-        
+
         let path = temp_dir.path().to_string_lossy().to_string();
-        
-        let sequential_results = sequential_pipeline.process_files(&[path.clone()], options.clone()).unwrap();
+
+        let sequential_results = sequential_pipeline
+            .process_files(&[path.clone()], options.clone())
+            .unwrap();
         let parallel_results = parallel_pipeline.process_files(&[path], options).unwrap();
-        
+
         // Results should be consistent between sequential and parallel processing
         assert_eq!(sequential_results.total_files, parallel_results.total_files);
-        assert_eq!(sequential_results.processed_files, parallel_results.processed_files);
-        assert_eq!(sequential_results.files_with_changes, parallel_results.files_with_changes);
-        assert_eq!(sequential_results.failed_files, parallel_results.failed_files);
-        
+        assert_eq!(
+            sequential_results.processed_files,
+            parallel_results.processed_files
+        );
+        assert_eq!(
+            sequential_results.files_with_changes,
+            parallel_results.files_with_changes
+        );
+        assert_eq!(
+            sequential_results.failed_files,
+            parallel_results.failed_files
+        );
+
         // Sort results by file path for comparison
         let mut seq_results = sequential_results.results;
         let mut par_results = parallel_results.results;
         seq_results.sort_by(|a, b| a.file_path.cmp(&b.file_path));
         par_results.sort_by(|a, b| a.file_path.cmp(&b.file_path));
-        
+
         // Compare individual file results
         assert_eq!(seq_results.len(), par_results.len());
         for (seq_result, par_result) in seq_results.iter().zip(par_results.iter()) {
@@ -1142,55 +1266,73 @@ export const classes = "p-4 flex m-2";
     fn test_processing_mode_setting() {
         let config = FileDiscoveryConfig::default();
         let mut pipeline = FileProcessingPipeline::new(config).unwrap();
-        
+
         // Default should be parallel
-        assert!(matches!(pipeline.processing_mode(), ProcessingMode::Parallel));
-        
+        assert!(matches!(
+            pipeline.processing_mode(),
+            ProcessingMode::Parallel
+        ));
+
         // Test changing mode
         pipeline.set_processing_mode(ProcessingMode::Sequential);
-        assert!(matches!(pipeline.processing_mode(), ProcessingMode::Sequential));
-        
+        assert!(matches!(
+            pipeline.processing_mode(),
+            ProcessingMode::Sequential
+        ));
+
         pipeline.set_processing_mode(ProcessingMode::ParallelWithThreads(8));
-        assert!(matches!(pipeline.processing_mode(), ProcessingMode::ParallelWithThreads(8)));
+        assert!(matches!(
+            pipeline.processing_mode(),
+            ProcessingMode::ParallelWithThreads(8)
+        ));
     }
 
     #[test]
     fn test_large_number_of_files_parallel() {
         let temp_dir = TempDir::new().unwrap();
         let base = temp_dir.path();
-        
+
         // Create many files to test parallel processing performance
         fs::create_dir_all(base.join("src")).unwrap();
-        
+
         // Create 20 test files with different class patterns
         for i in 0..20 {
-            let content = format!(r#"
+            let content = format!(
+                r#"
 export function Component{}() {{
   return <div className="p-{} flex m-{} items-center bg-blue-{} text-white">
     Test Component {}
   </div>;
 }}
-"#, i, i % 8 + 1, i % 4 + 1, i % 10 + 100, i);
+"#,
+                i,
+                i % 8 + 1,
+                i % 4 + 1,
+                i % 10 + 100,
+                i
+            );
             fs::write(base.join(format!("src/Component{}.tsx", i)), content).unwrap();
         }
-        
+
         let config = FileDiscoveryConfig::default();
         let pipeline = FileProcessingPipeline::parallel(config).unwrap();
-        
+
         let options = ProcessOptions {
             dry_run: true,
             write: false,
             check_formatted: false,
         };
-        
-        let results = pipeline.process_files(&[temp_dir.path().to_string_lossy().to_string()], options).unwrap();
-        
+
+        let results = pipeline
+            .process_files(&[temp_dir.path().to_string_lossy().to_string()], options)
+            .unwrap();
+
         // Should process all 20 files
         assert_eq!(results.total_files, 20);
         assert_eq!(results.processed_files, 20);
         assert_eq!(results.failed_files, 0);
         assert!(results.success_rate() == 1.0);
-        
+
         // All files should have changes (classes need sorting)
         assert!(results.files_with_changes > 0);
     }
@@ -1199,39 +1341,49 @@ export function Component{}() {{
     fn test_parallel_error_handling() {
         let temp_dir = TempDir::new().unwrap();
         let base = temp_dir.path();
-        
+
         fs::create_dir_all(base.join("src")).unwrap();
-        
+
         // Create a valid file
-        fs::write(base.join("src/Valid.tsx"), r#"
+        fs::write(
+            base.join("src/Valid.tsx"),
+            r#"
 export function Valid() {
   return <div className="p-4 flex m-2">Valid</div>;
 }
-"#).unwrap();
-        
+"#,
+        )
+        .unwrap();
+
         // Create a file with syntax errors that will fail parsing
-        fs::write(base.join("src/Invalid.tsx"), r#"
+        fs::write(
+            base.join("src/Invalid.tsx"),
+            r#"
 export function Invalid() {
   return <div className="p-4 flex m-2">Invalid</>; // Missing closing tag
 }
-"#).unwrap();
-        
+"#,
+        )
+        .unwrap();
+
         let config = FileDiscoveryConfig::default();
         let pipeline = FileProcessingPipeline::parallel(config).unwrap();
-        
+
         let options = ProcessOptions {
             dry_run: true,
             write: false,
             check_formatted: false,
         };
-        
-        let results = pipeline.process_files(&[temp_dir.path().to_string_lossy().to_string()], options).unwrap();
-        
+
+        let results = pipeline
+            .process_files(&[temp_dir.path().to_string_lossy().to_string()], options)
+            .unwrap();
+
         // Should process both files, but one should fail
         assert_eq!(results.total_files, 2);
         assert_eq!(results.processed_files, 1); // Only the valid file
         assert_eq!(results.failed_files, 1); // The invalid file
-        
+
         // Check that we have both success and failure results
         let successes = results.results.iter().filter(|r| r.success).count();
         let failures = results.results.iter().filter(|r| !r.success).count();

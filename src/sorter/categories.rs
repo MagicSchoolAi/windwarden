@@ -1,53 +1,38 @@
-use std::collections::HashMap;
 use once_cell::sync::Lazy;
+use std::collections::HashMap;
 
 // Order of categories in Tailwind CSS
 pub static CATEGORY_ORDER: &[&str] = &[
     // Layout
     "layout",
-    
     // Flexbox & Grid
     "flexbox-grid",
-    
     // Spacing
     "spacing",
-    
     // Sizing
     "sizing",
-    
     // Typography
     "typography",
-    
     // Backgrounds
     "backgrounds",
-    
     // Borders
     "borders",
-    
     // Effects
     "effects",
-    
     // Filters
     "filters",
-    
     // Tables
     "tables",
-    
     // Transitions & Animation
     "transitions",
-    
     // Transforms
     "transforms",
-    
     // Interactivity
     "interactivity",
-    
     // SVG
     "svg",
-    
     // Accessibility
     "accessibility",
-    
     // Unknown classes (custom, non-Tailwind)
     "unknown",
 ];
@@ -55,7 +40,7 @@ pub static CATEGORY_ORDER: &[&str] = &[
 // Mapping of class prefixes to categories
 pub static CLASS_CATEGORIES: Lazy<HashMap<&'static str, &'static str>> = Lazy::new(|| {
     let mut map = HashMap::new();
-    
+
     // Layout
     map.insert("aspect-", "layout");
     map.insert("container", "layout");

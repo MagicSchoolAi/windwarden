@@ -123,7 +123,7 @@ impl DiffFormatter {
         // File header
         let header = format!("--- {}", diff.file_path);
         let header2 = format!("+++ {}", diff.file_path);
-        
+
         if self.use_colors {
             output.push(header.red().bold().to_string());
             output.push(header2.green().bold().to_string());
@@ -134,10 +134,10 @@ impl DiffFormatter {
 
         // Group changes into hunks
         let hunks = self.group_into_hunks(&diff.changes);
-        
+
         for hunk in hunks {
             output.push(self.format_hunk_header(&hunk));
-            
+
             for line in &hunk.lines {
                 output.push(self.format_diff_line(line));
             }
@@ -227,7 +227,8 @@ impl DiffFormatter {
                 hunk.lines.push(line.clone());
 
                 // Check if we should end the hunk
-                let context_after = lines[i..].iter()
+                let context_after = lines[i..]
+                    .iter()
                     .take(self.context_lines + 1)
                     .all(|l| matches!(l.change_type, ChangeType::Unchanged));
 
@@ -253,7 +254,7 @@ impl DiffFormatter {
         let start = hunk.start_line;
         let count = hunk.lines.len();
         let header = format!("@@ -{},{} +{},{} @@", start, count, start, count);
-        
+
         if self.use_colors {
             header.cyan().bold().to_string()
         } else {
@@ -383,8 +384,12 @@ mod tests {
     fn test_no_changes() {
         let original = "const x = 1;\nconst y = 2;";
         let modified = "const x = 1;\nconst y = 2;";
-        
-        let diff = FileDiff::new("test.js".to_string(), original.to_string(), modified.to_string());
+
+        let diff = FileDiff::new(
+            "test.js".to_string(),
+            original.to_string(),
+            modified.to_string(),
+        );
         assert!(!diff.has_changes);
         assert!(diff.changes.is_empty());
     }
@@ -393,13 +398,17 @@ mod tests {
     fn test_simple_change() {
         let original = r#"<div className="p-4 flex m-2">Test</div>"#;
         let modified = r#"<div className="flex m-2 p-4">Test</div>"#;
-        
-        let diff = FileDiff::new("test.jsx".to_string(), original.to_string(), modified.to_string());
+
+        let diff = FileDiff::new(
+            "test.jsx".to_string(),
+            original.to_string(),
+            modified.to_string(),
+        );
         assert!(diff.has_changes);
-        
+
         let formatter = DiffFormatter::new().with_colors(false);
         let output = formatter.format_diff(&diff);
-        
+
         assert!(output.contains("--- test.jsx"));
         assert!(output.contains("+++ test.jsx"));
         assert!(output.contains(r#"-<div className="p-4 flex m-2">Test</div>"#));
@@ -410,10 +419,14 @@ mod tests {
     fn test_diff_summary() {
         let original = "line1\nline2\nline3";
         let modified = "line1\nmodified2\nline3\nnew_line";
-        
-        let diff = FileDiff::new("test.txt".to_string(), original.to_string(), modified.to_string());
+
+        let diff = FileDiff::new(
+            "test.txt".to_string(),
+            original.to_string(),
+            modified.to_string(),
+        );
         let summary = diff.get_summary();
-        
+
         assert_eq!(summary.lines_added, 2); // modified2 + new_line
         assert_eq!(summary.lines_removed, 1); // line2
     }
@@ -422,11 +435,15 @@ mod tests {
     fn test_format_summary() {
         let original = "old line";
         let modified = "new line";
-        
-        let diff = FileDiff::new("test.txt".to_string(), original.to_string(), modified.to_string());
+
+        let diff = FileDiff::new(
+            "test.txt".to_string(),
+            original.to_string(),
+            modified.to_string(),
+        );
         let formatter = DiffFormatter::new().with_colors(false);
         let summary = formatter.format_summary(&diff);
-        
+
         assert_eq!(summary, "+1 -1");
     }
 }

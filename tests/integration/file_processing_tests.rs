@@ -7,7 +7,7 @@ use tempfile::TempDir;
 /// Helper function to create a temporary directory with test files
 fn create_test_directory() -> TempDir {
     let temp_dir = TempDir::new().expect("Failed to create temp directory");
-    
+
     // Create a basic JSX file
     fs::write(
         temp_dir.path().join("test.jsx"),
@@ -25,7 +25,8 @@ function TestComponent() {
 }
 
 export default TestComponent;"#,
-    ).expect("Failed to write test.jsx");
+    )
+    .expect("Failed to write test.jsx");
 
     // Create a TypeScript React file
     fs::write(
@@ -48,7 +49,8 @@ export const TestComponent: React.FC<Props> = ({ title }) => {
     </div>
   );
 };"#,
-    ).expect("Failed to write test.tsx");
+    )
+    .expect("Failed to write test.tsx");
 
     // Create a file with function calls
     fs::write(
@@ -72,8 +74,9 @@ export { buttonClasses, cardClasses };"#,
     ).expect("Failed to write utility.js");
 
     // Create a nested directory structure
-    fs::create_dir_all(temp_dir.path().join("src/components")).expect("Failed to create nested directories");
-    
+    fs::create_dir_all(temp_dir.path().join("src/components"))
+        .expect("Failed to create nested directories");
+
     fs::write(
         temp_dir.path().join("src/components/Button.tsx"),
         r#"import React from 'react';
@@ -94,12 +97,14 @@ export function Button({ children, variant = 'primary' }) {
     ).expect("Failed to write Button.tsx");
 
     // Create a file that should be excluded (node_modules)
-    fs::create_dir_all(temp_dir.path().join("node_modules/some-package")).expect("Failed to create node_modules");
+    fs::create_dir_all(temp_dir.path().join("node_modules/some-package"))
+        .expect("Failed to create node_modules");
     fs::write(
         temp_dir.path().join("node_modules/some-package/index.js"),
         r#"// This file should be excluded by default
 const classes = "p-4 m-2 bg-red-500";"#,
-    ).expect("Failed to write node_modules file");
+    )
+    .expect("Failed to write node_modules file");
 
     temp_dir
 }
@@ -107,10 +112,11 @@ const classes = "p-4 m-2 bg-red-500";"#,
 #[test]
 fn test_format_command_check_mode() {
     let temp_dir = create_test_directory();
-    
+
     let mut cmd = Command::cargo_bin("windwarden").unwrap();
     cmd.arg("format")
-        .arg("--mode").arg("check")
+        .arg("--mode")
+        .arg("check")
         .arg(temp_dir.path().join("test.jsx"))
         .assert()
         .success()
@@ -121,23 +127,24 @@ fn test_format_command_check_mode() {
 fn test_format_command_write_mode() {
     let temp_dir = create_test_directory();
     let test_file = temp_dir.path().join("test.jsx");
-    
+
     // First, read the original content
     let original_content = fs::read_to_string(&test_file).unwrap();
-    
+
     let mut cmd = Command::cargo_bin("windwarden").unwrap();
     cmd.arg("format")
-        .arg("--mode").arg("write")
+        .arg("--mode")
+        .arg("write")
         .arg(&test_file)
         .assert()
         .success();
-    
+
     // Read the modified content
     let modified_content = fs::read_to_string(&test_file).unwrap();
-    
+
     // The content should be different (sorted)
     assert_ne!(original_content, modified_content);
-    
+
     // The modified content should contain properly sorted classes
     assert!(modified_content.contains("flex items-center justify-center"));
 }
@@ -145,10 +152,11 @@ fn test_format_command_write_mode() {
 #[test]
 fn test_format_command_verify_mode() {
     let temp_dir = create_test_directory();
-    
+
     let mut cmd = Command::cargo_bin("windwarden").unwrap();
     cmd.arg("format")
-        .arg("--mode").arg("verify")
+        .arg("--mode")
+        .arg("verify")
         .arg(temp_dir.path().join("test.jsx"))
         .assert()
         .failure() // Should fail because files are not formatted
@@ -158,7 +166,7 @@ fn test_format_command_verify_mode() {
 #[test]
 fn test_check_command() {
     let temp_dir = create_test_directory();
-    
+
     let mut cmd = Command::cargo_bin("windwarden").unwrap();
     cmd.arg("check")
         .arg(temp_dir.path().join("test.tsx"))
@@ -170,10 +178,11 @@ fn test_check_command() {
 #[test]
 fn test_directory_processing() {
     let temp_dir = create_test_directory();
-    
+
     let mut cmd = Command::cargo_bin("windwarden").unwrap();
     cmd.arg("format")
-        .arg("--mode").arg("check")
+        .arg("--mode")
+        .arg("check")
         .arg(temp_dir.path())
         .assert()
         .success()
@@ -183,13 +192,15 @@ fn test_directory_processing() {
 #[test]
 fn test_glob_pattern_processing() {
     let temp_dir = create_test_directory();
-    
+
     // For now, test directory processing instead of glob patterns
     // since glob patterns need to be relative to current working directory
     let mut cmd = Command::cargo_bin("windwarden").unwrap();
     cmd.arg("format")
-        .arg("--mode").arg("check")
-        .arg("--extensions").arg("tsx")
+        .arg("--mode")
+        .arg("check")
+        .arg("--extensions")
+        .arg("tsx")
         .arg(temp_dir.path())
         .assert()
         .success()
@@ -199,15 +210,17 @@ fn test_glob_pattern_processing() {
 #[test]
 fn test_file_extension_filtering() {
     let temp_dir = create_test_directory();
-    
+
     let mut cmd = Command::cargo_bin("windwarden").unwrap();
     cmd.arg("format")
-        .arg("--mode").arg("check")
-        .arg("--extensions").arg("tsx")
+        .arg("--mode")
+        .arg("check")
+        .arg("--extensions")
+        .arg("tsx")
         .arg(temp_dir.path())
         .assert()
         .success();
-    
+
     // Should only process .tsx files, not .jsx or .js files
     // We can verify this by checking that the output doesn't mention .jsx files
 }
@@ -215,27 +228,32 @@ fn test_file_extension_filtering() {
 #[test]
 fn test_exclude_patterns() {
     let temp_dir = create_test_directory();
-    
+
     let mut cmd = Command::cargo_bin("windwarden").unwrap();
     cmd.arg("format")
-        .arg("--mode").arg("check")
-        .arg("--exclude").arg("node_modules/**")
+        .arg("--mode")
+        .arg("check")
+        .arg("--exclude")
+        .arg("node_modules/**")
         .arg(temp_dir.path())
         .assert()
         .success();
-    
+
     // Should exclude node_modules by default, but let's be explicit
 }
 
 #[test]
 fn test_parallel_processing() {
     let temp_dir = create_test_directory();
-    
+
     let mut cmd = Command::cargo_bin("windwarden").unwrap();
     cmd.arg("format")
-        .arg("--mode").arg("check")
-        .arg("--processing").arg("parallel")
-        .arg("--threads").arg("2")
+        .arg("--mode")
+        .arg("check")
+        .arg("--processing")
+        .arg("parallel")
+        .arg("--threads")
+        .arg("2")
         .arg(temp_dir.path())
         .assert()
         .success()
@@ -245,11 +263,13 @@ fn test_parallel_processing() {
 #[test]
 fn test_sequential_processing() {
     let temp_dir = create_test_directory();
-    
+
     let mut cmd = Command::cargo_bin("windwarden").unwrap();
     cmd.arg("format")
-        .arg("--mode").arg("check")
-        .arg("--processing").arg("sequential")
+        .arg("--mode")
+        .arg("check")
+        .arg("--processing")
+        .arg("sequential")
         .arg(temp_dir.path())
         .assert()
         .success()
@@ -259,10 +279,11 @@ fn test_sequential_processing() {
 #[test]
 fn test_stats_output() {
     let temp_dir = create_test_directory();
-    
+
     let mut cmd = Command::cargo_bin("windwarden").unwrap();
     cmd.arg("format")
-        .arg("--mode").arg("check")
+        .arg("--mode")
+        .arg("check")
         .arg("--stats")
         .arg(temp_dir.path().join("test.jsx"))
         .assert()
@@ -275,10 +296,11 @@ fn test_stats_output() {
 #[test]
 fn test_diff_output() {
     let temp_dir = create_test_directory();
-    
+
     let mut cmd = Command::cargo_bin("windwarden").unwrap();
     cmd.arg("format")
-        .arg("--mode").arg("check")
+        .arg("--mode")
+        .arg("check")
         .arg("--diff")
         .arg(temp_dir.path().join("test.jsx"))
         .assert()
@@ -293,19 +315,23 @@ fn test_diff_output() {
 fn test_error_handling_nonexistent_file() {
     let mut cmd = Command::cargo_bin("windwarden").unwrap();
     cmd.arg("format")
-        .arg("--mode").arg("check")
+        .arg("--mode")
+        .arg("check")
         .arg("nonexistent_file.tsx")
         .assert()
         .failure()
         .stderr(predicate::str::contains("File not found"))
-        .stderr(predicate::str::contains("Check that the file path is correct"));
+        .stderr(predicate::str::contains(
+            "Check that the file path is correct",
+        ));
 }
 
 #[test]
 fn test_error_handling_invalid_glob() {
     let mut cmd = Command::cargo_bin("windwarden").unwrap();
     cmd.arg("format")
-        .arg("--mode").arg("check")
+        .arg("--mode")
+        .arg("check")
         .arg("src/**[invalid")
         .assert()
         .failure()
@@ -316,39 +342,48 @@ fn test_error_handling_invalid_glob() {
 #[test]
 fn test_error_handling_invalid_thread_count() {
     let temp_dir = create_test_directory();
-    
+
     let mut cmd = Command::cargo_bin("windwarden").unwrap();
     cmd.arg("format")
-        .arg("--mode").arg("check")
-        .arg("--threads").arg("0")
+        .arg("--mode")
+        .arg("check")
+        .arg("--threads")
+        .arg("0")
         .arg(temp_dir.path())
         .assert()
         .failure()
-        .stderr(predicate::str::contains("Thread count must be greater than 0"));
+        .stderr(predicate::str::contains(
+            "Thread count must be greater than 0",
+        ));
 }
 
 #[test]
 fn test_progress_reporting() {
     let temp_dir = create_test_directory();
-    
+
     // Create more files to trigger progress reporting
     for i in 1..=10 {
         fs::write(
             temp_dir.path().join(format!("file_{}.tsx", i)),
-            format!(r#"
+            format!(
+                r#"
 import React from 'react';
 export const Component{} = () => (
   <div className="p-4 m-2 bg-blue-500 text-white rounded">
     Component {}
   </div>
 );
-"#, i, i),
-        ).expect("Failed to write test file");
+"#,
+                i, i
+            ),
+        )
+        .expect("Failed to write test file");
     }
-    
+
     let mut cmd = Command::cargo_bin("windwarden").unwrap();
     cmd.arg("format")
-        .arg("--mode").arg("check")
+        .arg("--mode")
+        .arg("check")
         .arg("--progress")
         .arg(temp_dir.path())
         .assert()
@@ -359,7 +394,7 @@ export const Component{} = () => (
 #[test]
 fn test_multiple_file_types() {
     let temp_dir = create_test_directory();
-    
+
     // Create additional JS file (without JSX to avoid parse errors)
     fs::write(
         temp_dir.path().join("test.js"),
@@ -368,12 +403,15 @@ const buttonClasses = "p-4 bg-green-500 flex justify-center items-center m-2 tex
 const headerClasses = "font-bold text-xl";
 
 export { buttonClasses, headerClasses };"#,
-    ).expect("Failed to write test.js");
-    
+    )
+    .expect("Failed to write test.js");
+
     let mut cmd = Command::cargo_bin("windwarden").unwrap();
     cmd.arg("format")
-        .arg("--mode").arg("check")
-        .arg("--extensions").arg("js,jsx,tsx")
+        .arg("--mode")
+        .arg("check")
+        .arg("--extensions")
+        .arg("js,jsx,tsx")
         .arg(temp_dir.path())
         .assert()
         .success()
@@ -383,32 +421,37 @@ export { buttonClasses, headerClasses };"#,
 #[test]
 fn test_max_depth_limiting() {
     let temp_dir = create_test_directory();
-    
+
     // Create deeply nested structure
-    fs::create_dir_all(temp_dir.path().join("level1/level2/level3")).expect("Failed to create deep structure");
+    fs::create_dir_all(temp_dir.path().join("level1/level2/level3"))
+        .expect("Failed to create deep structure");
     fs::write(
         temp_dir.path().join("level1/level2/level3/deep.tsx"),
         r#"export const Deep = () => <div className="p-4 m-2">Deep component</div>;"#,
-    ).expect("Failed to write deep file");
-    
+    )
+    .expect("Failed to write deep file");
+
     let mut cmd = Command::cargo_bin("windwarden").unwrap();
     cmd.arg("format")
-        .arg("--mode").arg("check")
-        .arg("--max-depth").arg("2")
+        .arg("--mode")
+        .arg("check")
+        .arg("--max-depth")
+        .arg("2")
         .arg(temp_dir.path())
         .assert()
         .success();
-    
+
     // The deep file at level 3 should not be processed due to max-depth=2
 }
 
 #[test]
 fn test_empty_directory() {
     let temp_dir = TempDir::new().expect("Failed to create temp directory");
-    
+
     let mut cmd = Command::cargo_bin("windwarden").unwrap();
     cmd.arg("format")
-        .arg("--mode").arg("check")
+        .arg("--mode")
+        .arg("check")
         .arg(temp_dir.path())
         .assert()
         .success()
@@ -418,7 +461,7 @@ fn test_empty_directory() {
 #[test]
 fn test_mixed_formatted_and_unformatted_files() {
     let temp_dir = create_test_directory();
-    
+
     // Create an already properly formatted file
     fs::write(
         temp_dir.path().join("formatted.tsx"),
@@ -429,11 +472,13 @@ export const FormattedComponent = () => (
     <span className="text-lg font-bold">Already formatted</span>
   </div>
 );"#,
-    ).expect("Failed to write formatted file");
-    
+    )
+    .expect("Failed to write formatted file");
+
     let mut cmd = Command::cargo_bin("windwarden").unwrap();
     cmd.arg("format")
-        .arg("--mode").arg("check")
+        .arg("--mode")
+        .arg("check")
         .arg("--stats")
         .arg(temp_dir.path())
         .assert()

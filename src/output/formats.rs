@@ -49,12 +49,12 @@ pub fn create_modification(
 pub fn position_to_line_col(content: &str, pos: usize) -> (usize, usize) {
     let mut line = 1;
     let mut col = 1;
-    
+
     for (i, ch) in content.char_indices() {
         if i >= pos {
             break;
         }
-        
+
         if ch == '\n' {
             line += 1;
             col = 1;
@@ -62,7 +62,7 @@ pub fn position_to_line_col(content: &str, pos: usize) -> (usize, usize) {
             col += 1;
         }
     }
-    
+
     (line, col)
 }
 
@@ -78,7 +78,7 @@ pub fn create_unformatted_file(file_path: &str, issue_count: usize) -> Unformatt
     } else {
         vec![format!("{} class ordering issues", issue_count)]
     };
-    
+
     UnformattedFile {
         file_path: file_path.to_string(),
         issues,
@@ -100,9 +100,13 @@ pub fn format_issue_count(errors: usize, warnings: usize) -> String {
         (0, 0) => "No issues found".to_string(),
         (0, w) => format!("{} warning{}", w, if w == 1 { "" } else { "s" }),
         (e, 0) => format!("{} error{}", e, if e == 1 { "" } else { "s" }),
-        (e, w) => format!("{} error{}, {} warning{}", 
-                         e, if e == 1 { "" } else { "s" },
-                         w, if w == 1 { "" } else { "s" }),
+        (e, w) => format!(
+            "{} error{}, {} warning{}",
+            e,
+            if e == 1 { "" } else { "s" },
+            w,
+            if w == 1 { "" } else { "s" }
+        ),
     }
 }
 
@@ -125,17 +129,17 @@ pub fn create_processing_summary(
 mod tests {
     use super::*;
     use crate::parser::{PatternType, QuoteStyle};
-    
+
     #[test]
     fn test_position_to_line_col() {
         let content = "line 1\nline 2\nline 3";
-        
+
         assert_eq!(position_to_line_col(content, 0), (1, 1));
         assert_eq!(position_to_line_col(content, 6), (1, 7)); // End of line 1
         assert_eq!(position_to_line_col(content, 7), (2, 1)); // Start of line 2
         assert_eq!(position_to_line_col(content, 14), (3, 1)); // Start of line 3
     }
-    
+
     #[test]
     fn test_extract_file_name() {
         assert_eq!(extract_file_name("/path/to/file.tsx"), "file.tsx");
@@ -143,7 +147,7 @@ mod tests {
         assert_eq!(extract_file_name("/single"), "single");
         assert_eq!(extract_file_name(""), "");
     }
-    
+
     #[test]
     fn test_format_issue_count() {
         assert_eq!(format_issue_count(0, 0), "No issues found");
@@ -154,7 +158,7 @@ mod tests {
         assert_eq!(format_issue_count(1, 1), "1 error, 1 warning");
         assert_eq!(format_issue_count(2, 3), "2 errors, 3 warnings");
     }
-    
+
     #[test]
     fn test_create_sorting_issue() {
         let class_match = ClassMatch {
@@ -164,22 +168,22 @@ mod tests {
             pattern_type: PatternType::JSXAttribute,
             quote_style: QuoteStyle::Double,
         };
-        
+
         let issue = create_sorting_issue(&class_match, 10, 5, "flex p-4 bg-blue-500");
-        
+
         assert_eq!(issue.rule_id, "class-order");
         assert_eq!(issue.line, 10);
         assert_eq!(issue.column, 5);
         assert_eq!(issue.source, "p-4 bg-blue-500 flex");
         assert_eq!(issue.suggestions[0].fix.text, "flex p-4 bg-blue-500");
     }
-    
+
     #[test]
     fn test_create_unformatted_file() {
         let file = create_unformatted_file("/test/file.tsx", 1);
         assert_eq!(file.file_path, "/test/file.tsx");
         assert_eq!(file.issues[0], "1 class ordering issue");
-        
+
         let file = create_unformatted_file("/test/file.tsx", 5);
         assert_eq!(file.issues[0], "5 class ordering issues");
     }
