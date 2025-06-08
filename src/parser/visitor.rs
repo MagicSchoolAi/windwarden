@@ -115,22 +115,122 @@ impl<'a> ClassExtractor<'a> {
     }
 
     fn looks_like_tailwind_classes(&self, content: &str) -> bool {
-        // Simple heuristic: if it contains spaces and looks like classes
         let trimmed = content.trim();
+        
+        // Exclude obvious non-class strings
+        if self.is_excluded_string(trimmed) {
+            return false;
+        }
 
-        // Must have spaces (multiple classes) or known Tailwind patterns
+        // Check if string contains potential Tailwind classes
         if trimmed.contains(' ') {
+            // Multiple words - check if they look like CSS classes
+            return self.contains_tailwind_like_tokens(trimmed);
+        }
+
+        // Single token - check if it matches common Tailwind patterns
+        self.matches_tailwind_pattern(trimmed)
+    }
+
+    fn is_excluded_string(&self, content: &str) -> bool {
+        // Exclude CSS functions
+        if content.starts_with("calc(") || content.starts_with("clamp(") || 
+           content.starts_with("min(") || content.starts_with("max(") ||
+           content.starts_with("var(") || content.starts_with("env(") {
             return true;
         }
 
-        // Single class - check if it matches common Tailwind patterns
+        // Exclude JavaScript/React directives
+        if content == "use client" || content == "use strict" || content == "use server" {
+            return true;
+        }
+
+        // Exclude URLs and paths
+        if content.starts_with("http://") || content.starts_with("https://") || 
+           content.starts_with("./") || content.starts_with("../") || content.starts_with("/") {
+            return true;
+        }
+
+        // Exclude common non-class patterns
+        if content.contains("://") || content.contains("@") || content.contains("=") {
+            return true;
+        }
+
+        false
+    }
+
+    fn contains_tailwind_like_tokens(&self, content: &str) -> bool {
+        let tokens: Vec<&str> = content.split_whitespace().collect();
+        
+        // Require at least one token to look like a Tailwind class
+        tokens.iter().any(|token| self.matches_tailwind_pattern(token))
+    }
+
+    fn matches_tailwind_pattern(&self, token: &str) -> bool {
+        // Known Tailwind prefixes
         let common_prefixes = [
-            "p-", "m-", "text-", "bg-", "flex", "grid", "w-", "h-", "border-", "rounded", "items-",
-            "justify-", "gap-",
+            // Layout
+            "block", "inline", "flex", "grid", "table", "hidden",
+            // Flexbox & Grid
+            "items-", "justify-", "gap-", "grid-", "col-", "row-",
+            // Spacing
+            "p-", "px-", "py-", "pt-", "pr-", "pb-", "pl-",
+            "m-", "mx-", "my-", "mt-", "mr-", "mb-", "ml-",
+            "space-", "-space-",
+            // Sizing
+            "w-", "h-", "min-w-", "min-h-", "max-w-", "max-h-",
+            // Typography
+            "text-", "font-", "leading-", "tracking-", "line-",
+            // Backgrounds
+            "bg-", "from-", "via-", "to-",
+            // Borders
+            "border", "border-", "rounded", "rounded-",
+            // Effects
+            "shadow", "shadow-", "opacity-", "ring-", "ring-",
+            // Filters
+            "blur-", "brightness-", "contrast-", "grayscale", "invert",
+            // Transforms
+            "transform", "rotate-", "scale-", "translate-", "skew-",
+            // Transitions
+            "transition", "duration-", "ease-", "delay-",
+            // Interactivity
+            "cursor-", "select-", "pointer-events-", "resize",
         ];
-        common_prefixes
-            .iter()
-            .any(|prefix| trimmed.starts_with(prefix))
+
+        // Check for exact matches or prefix matches
+        if common_prefixes.iter().any(|prefix| {
+            if prefix.ends_with('-') {
+                token.starts_with(prefix)
+            } else {
+                token == *prefix
+            }
+        }) {
+            return true;
+        }
+
+        // Check for responsive prefixes (sm:, md:, lg:, xl:, 2xl:)
+        if token.contains(':') {
+            let parts: Vec<&str> = token.split(':').collect();
+            if parts.len() == 2 {
+                let prefix = parts[0];
+                let class = parts[1];
+                if ["sm", "md", "lg", "xl", "2xl", "dark", "hover", "focus", "active", "first", "last", "odd", "even"].contains(&prefix) {
+                    return self.matches_tailwind_pattern(class);
+                }
+            }
+        }
+
+        // Check for negative values (-m-4, -mt-2, etc.)
+        if token.starts_with('-') && token.len() > 1 {
+            return self.matches_tailwind_pattern(&token[1..]);
+        }
+
+        // Check for important modifier (space-y-4!, bg-red-500!, etc.)
+        if token.ends_with('!') && token.len() > 1 {
+            return self.matches_tailwind_pattern(&token[..token.len() - 1]);
+        }
+
+        false
     }
 
     fn is_static_template_literal(&self, template: &TemplateLiteral) -> bool {

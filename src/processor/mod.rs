@@ -650,6 +650,74 @@ const variants = ['hover:bg-gray-100', 'focus:ring-2', 'active:bg-gray-200'];
     }
 
     #[test]
+    fn test_css_calc_expressions_not_processed() {
+        let processor = FileProcessor::new();
+        
+        // CSS calc() expressions should remain untouched
+        let input = r#"const style = { width: 'calc(100vh - 40px)', height: 'calc(100% - 2rem)' };"#;
+        let result = processor
+            .process_content(input, "test.tsx", ProcessOptions::default())
+            .unwrap();
+        assert_eq!(result, input, "CSS calc() expressions should not be processed");
+    }
+
+    #[test]
+    fn test_react_directives_not_processed() {
+        let processor = FileProcessor::new();
+        
+        // React directives should remain untouched
+        let input = r#"'use client';
+const Component = () => <div>Hello</div>;"#;
+        let result = processor
+            .process_content(input, "test.tsx", ProcessOptions::default())
+            .unwrap();
+        assert_eq!(result, input, "React directives should not be processed");
+    }
+
+    #[test]
+    fn test_urls_and_paths_not_processed() {
+        let processor = FileProcessor::new();
+        
+        // URLs and paths should remain untouched
+        let input = r#"const url = 'https://example.com/path';
+const path = './components/Button';
+const absolute = '/home/user/file';"#;
+        let result = processor
+            .process_content(input, "test.tsx", ProcessOptions::default())
+            .unwrap();
+        assert_eq!(result, input, "URLs and paths should not be processed");
+    }
+
+    #[test]
+    fn test_mixed_real_and_fake_classes() {
+        let processor = FileProcessor::new();
+        
+        // Only actual Tailwind classes should be sorted
+        let input = r#"const Component = () => (
+  <div 
+    className="p-4 flex bg-red-500"
+    style={{ width: 'calc(100vh - 40px)' }}
+    data-testid="use client test"
+  >
+    Content
+  </div>
+);"#;
+        let expected = r#"const Component = () => (
+  <div 
+    className="flex p-4 bg-red-500"
+    style={{ width: 'calc(100vh - 40px)' }}
+    data-testid="use client test"
+  >
+    Content
+  </div>
+);"#;
+        let result = processor
+            .process_content(input, "test.tsx", ProcessOptions::default())
+            .unwrap();
+        assert_eq!(result, expected);
+    }
+
+    #[test]
     fn test_whitespace_normalization() {
         let processor = FileProcessor::new();
         let input = r#"<div className="  p-4   flex    m-2  items-center  ">"#;
