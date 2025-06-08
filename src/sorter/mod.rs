@@ -255,6 +255,28 @@ mod tests {
     }
 
     #[test]
+    fn test_debug_button_classes() {
+        let sorter = TailwindSorter::new();
+        let input = "flex items-center bg-blue-500 hover:bg-blue-600 text-white p-4";
+        let result = sorter.sort_classes(input);
+
+        println!("Input:  {}", input);
+        println!("Output: {}", result);
+
+        // According to Tailwind order:
+        // 1. flexbox-grid: flex, items-center
+        // 2. spacing: p-4
+        // 3. typography: text-white
+        // 4. backgrounds: bg-blue-500, hover:bg-blue-600
+
+        // Expected order: flex items-center p-4 text-white bg-blue-500 hover:bg-blue-600
+        assert_eq!(
+            result,
+            "flex items-center p-4 text-white bg-blue-500 hover:bg-blue-600"
+        );
+    }
+
+    #[test]
     fn test_variants() {
         let sorter = TailwindSorter::new();
         let input = "p-4 hover:bg-blue-500 flex md:flex-row";

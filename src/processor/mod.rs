@@ -201,12 +201,10 @@ impl FileProcessor {
 
         if options.write && changes_made {
             self.write_file_safely(file_path, &result)?;
-            Ok(String::new()) // No output needed when writing to file
-        } else if options.dry_run || !options.write {
-            Ok(result)
-        } else {
-            Ok(String::new()) // No changes and not in preview mode
         }
+
+        // Always return the processed content so that changes_made detection works correctly
+        Ok(result)
     }
 
     /// Write file content using the configured safety settings
@@ -257,6 +255,63 @@ impl Default for FileProcessor {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_processor_button_classes() {
+        let processor = FileProcessor::new();
+        let content = r#"function Button() {
+  return (
+    <button className="flex items-center bg-blue-500 hover:bg-blue-600 text-white p-4">
+      Click me
+    </button>
+  );
+}"#;
+
+        let options = ProcessOptions {
+            dry_run: true,
+            write: false,
+            check_formatted: false,
+        };
+
+        let result = processor
+            .process_content(content, "test.tsx", options)
+            .unwrap();
+
+        println!("Original:\n{}", content);
+        println!("Processed:\n{}", result);
+
+        // Check if the processed content has the correct order
+        assert!(result.contains("flex items-center p-4 text-white bg-blue-500 hover:bg-blue-600"));
+    }
+
+    #[test]
+    fn test_processor_with_config() {
+        let config = crate::config::Config::default();
+        let processor = FileProcessor::new_with_config(&config);
+        let content = r#"function Button() {
+  return (
+    <button className="flex items-center bg-blue-500 hover:bg-blue-600 text-white p-4">
+      Click me
+    </button>
+  );
+}"#;
+
+        let options = ProcessOptions {
+            dry_run: true,
+            write: false,
+            check_formatted: false,
+        };
+
+        let result = processor
+            .process_content(content, "test.tsx", options)
+            .unwrap();
+
+        println!("With config - Original:\n{}", content);
+        println!("With config - Processed:\n{}", result);
+
+        // Check if the processed content has the correct order
+        assert!(result.contains("flex items-center p-4 text-white bg-blue-500 hover:bg-blue-600"));
+    }
 
     #[test]
     fn test_basic_processing() {

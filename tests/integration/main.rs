@@ -7,11 +7,13 @@
 // - cargo test --test integration cli_tests
 // - cargo test --test integration error_handling_tests
 // - cargo test --test integration file_processing_tests
+// - cargo test --test integration output_reporting_tests
 // - cargo test --test integration performance_tests
 
 mod cli_tests;
 mod error_handling_tests;
 mod file_processing_tests;
+mod output_reporting_tests;
 mod performance_tests;
 
 #[cfg(test)]
@@ -30,6 +32,7 @@ mod test_runner {
         println!("- CLI Tests: Basic command-line interface functionality");
         println!("- Error Handling Tests: Error scenarios and recovery");
         println!("- File Processing Tests: Core file processing workflows");
+        println!("- Output Reporting Tests: Correct reporting of changes and formatting status");
         println!("- Performance Tests: Performance and scalability validation");
         println!();
 

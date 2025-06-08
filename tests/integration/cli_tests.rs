@@ -82,7 +82,7 @@ fn test_format_modes() {
         .arg(temp_dir.path().join("test2.tsx"))
         .assert()
         .success()
-        .stdout(predicate::str::contains("formatting"));
+        .stdout(predicate::str::contains("formatted"));
 
     // Test verify mode (should fail since file needs formatting)
     let mut cmd = Command::cargo_bin("windwarden").unwrap();

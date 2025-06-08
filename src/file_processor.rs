@@ -62,6 +62,21 @@ impl FileDiscovery {
         })
     }
 
+    /// Extract directory names from exclude patterns for direct directory name checking
+    fn get_excluded_directories(&self) -> Vec<String> {
+        let mut dirs = Vec::new();
+        for pattern in &self.config.exclude_patterns {
+            // Extract directory name from patterns like "dirname/**"
+            if let Some(dir_name) = pattern.strip_suffix("/**") {
+                dirs.push(dir_name.to_string());
+            } else if !pattern.contains('*') && !pattern.contains('?') && !pattern.contains('[') {
+                // Plain directory names without globs
+                dirs.push(pattern.clone());
+            }
+        }
+        dirs
+    }
+
     /// Find all files matching the criteria from the given paths
     pub fn discover_files(&self, paths: &[String]) -> Result<Vec<PathBuf>> {
         let mut files = Vec::new();
@@ -167,27 +182,20 @@ impl FileDiscovery {
 
     /// Check if a path is excluded by patterns
     fn is_excluded(&self, path: &Path) -> bool {
+        let excluded_dirs = self.get_excluded_directories();
+
         // Check if any component of the path matches an exclude pattern
         for component in path.components() {
             if let std::path::Component::Normal(name) = component {
                 let name_str = name.to_string_lossy();
-                // Check common directory names to exclude
-                if name_str == "node_modules"
-                    || name_str == "dist"
-                    || name_str == "build"
-                    || name_str == "coverage"
-                    || name_str == ".git"
-                    || name_str == ".next"
-                    || name_str == ".nuxt"
-                    || name_str == "target"
-                {
+                // Check if this directory name is in our exclude list
+                if excluded_dirs.iter().any(|dir| dir == &*name_str) {
                     return true;
                 }
             }
         }
 
         // Also check the full path against patterns
-
         self.exclude_set.is_match(path)
     }
 

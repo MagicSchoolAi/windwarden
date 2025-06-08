@@ -150,6 +150,14 @@ fn handle_format_command(
         config.exclude_patterns.extend(patterns.clone());
     }
 
+    // Add ignore patterns from JSON configuration
+    config.exclude_patterns.extend(
+        config_manager
+            .get_ignore_patterns()
+            .iter()
+            .map(|p| format!("{}/**", p)), // Convert directory names to glob patterns
+    );
+
     config.max_depth = options.max_depth;
     config.follow_links = options.follow_links;
 
