@@ -335,7 +335,7 @@ fn test_error_handling_invalid_glob() {
         .assert()
         .failure()
         .stderr(predicate::str::contains("Invalid glob pattern"))
-        .stderr(predicate::str::contains("Check the glob pattern syntax"));
+        .stderr(predicate::str::contains("Check glob syntax"));
 }
 
 #[test]

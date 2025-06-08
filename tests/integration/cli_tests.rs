@@ -9,7 +9,7 @@ fn test_help_command() {
     cmd.arg("--help")
         .assert()
         .success()
-        .stdout(predicate::str::contains("High-performance CLI tool"))
+        .stdout(predicate::str::contains("blazing fast CLI tool"))
         .stdout(predicate::str::contains("format"))
         .stdout(predicate::str::contains("check"));
 }
@@ -30,7 +30,7 @@ fn test_format_command_help() {
         .arg("--help")
         .assert()
         .success()
-        .stdout(predicate::str::contains("Format files"))
+        .stdout(predicate::str::contains("Format Tailwind CSS classes"))
         .stdout(predicate::str::contains("--mode"))
         .stdout(predicate::str::contains("--processing"))
         .stdout(predicate::str::contains("--threads"));
@@ -43,7 +43,7 @@ fn test_check_command_help() {
         .arg("--help")
         .assert()
         .success()
-        .stdout(predicate::str::contains("Check if files"))
+        .stdout(predicate::str::contains("Check if files are properly formatted"))
         .stdout(predicate::str::contains("--processing"))
         .stdout(predicate::str::contains("--stats"));
 }
@@ -80,7 +80,7 @@ fn test_format_modes() {
         .arg(temp_dir.path().join("test2.tsx"))
         .assert()
         .success()
-        .stdout(predicate::str::contains("formatted"));
+        .stdout(predicate::str::contains("formatting"));
 
     // Test verify mode (should fail since file needs formatting)
     let mut cmd = Command::cargo_bin("windwarden").unwrap();

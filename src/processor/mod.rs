@@ -1058,9 +1058,11 @@ const cardVariants = cva(['bg-white', 'rounded', 'shadow'], {
     fn test_multiline_jsx_class_name() {
         // Test multiline JSX with className
         let processor = FileProcessor::new();
-        let input = r#"<div className={"p-4 flex m-2" + "items-center bg-white hover:bg-gray-100"}>"#;
+        let input =
+            r#"<div className={"p-4 flex m-2" + "items-center bg-white hover:bg-gray-100"}>"#;
         // The sorting algorithm handles each string separately
-        let expected = r#"<div className={"flex items-center m-2" + "p-4 hover:bg-gray-100 bg-white"}>"#;
+        let expected =
+            r#"<div className={"flex items-center m-2" + "p-4 hover:bg-gray-100 bg-white"}>"#;
 
         let result = processor
             .process_content(input, "test.tsx", ProcessOptions::default())

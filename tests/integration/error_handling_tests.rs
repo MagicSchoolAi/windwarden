@@ -16,7 +16,7 @@ fn test_file_not_found_error() {
             "File not found: nonexistent_file.tsx",
         ))
         .stderr(predicate::str::contains(
-            "Suggestion: Check that the file path is correct",
+            "Check that the file path is correct",
         ));
 }
 
@@ -30,7 +30,7 @@ fn test_invalid_glob_pattern_error() {
         .assert()
         .failure()
         .stderr(predicate::str::contains("Invalid glob pattern"))
-        .stderr(predicate::str::contains("Check the glob pattern syntax"));
+        .stderr(predicate::str::contains("Check glob syntax"));
 }
 
 #[test]
@@ -50,7 +50,7 @@ fn test_invalid_thread_count_zero() {
             "Thread count must be greater than 0",
         ))
         .stderr(predicate::str::contains(
-            "Check your command line arguments",
+            "Check command line arguments syntax",
         ));
 }
 
@@ -69,7 +69,7 @@ fn test_invalid_thread_count_too_high() {
         .failure()
         .stderr(predicate::str::contains("Thread count cannot exceed 1024"))
         .stderr(predicate::str::contains(
-            "Check your command line arguments",
+            "Check command line arguments syntax",
         ));
 }
 
@@ -189,7 +189,7 @@ fn test_malformed_exclude_pattern() {
         .assert()
         .failure()
         .stderr(predicate::str::contains("Invalid glob pattern"))
-        .stderr(predicate::str::contains("Check the glob pattern syntax"));
+        .stderr(predicate::str::contains("Check glob syntax"));
 }
 
 #[test]
