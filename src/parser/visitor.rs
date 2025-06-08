@@ -541,7 +541,7 @@ mod tests {
 
     #[test]
     fn test_multiline_string_jsx() {
-        let source = r#"className={"p-4 flex m-2" + "items-center bg-white"}"#;
+        let source = r#"<div className={"p-4 flex m-2" + "items-center bg-white"}>"#;
         let matches = parse_and_extract(source);
 
         assert_eq!(matches.len(), 1);
