@@ -276,6 +276,201 @@ fn test_next_directory_excluded_by_default() {
 }
 
 #[test]
+fn test_json_config_ignore_patterns() {
+    let temp_dir = TempDir::new().expect("Failed to create temp directory");
+
+    // Create valid source files
+    fs::write(
+        temp_dir.path().join("component.tsx"),
+        r#"export const Component = () => <div className="p-4 bg-red-500 flex">Component</div>;"#,
+    )
+    .expect("Failed to write component file");
+
+    fs::write(
+        temp_dir.path().join("utils.ts"),
+        r#"export const cn = (...args) => args.join(' ');"#,
+    )
+    .expect("Failed to write utils file");
+
+    // Create directories that should be ignored via JSON config
+    fs::create_dir_all(temp_dir.path().join("custom_build_dir/subdir"))
+        .expect("Failed to create custom_build_dir");
+    
+    fs::write(
+        temp_dir.path().join("custom_build_dir/should_be_ignored.tsx"),
+        r#"export const Ignored = () => <div className="p-4 bg-red-500 flex">Should be ignored</div>;"#,
+    )
+    .expect("Failed to write ignored file");
+
+    fs::write(
+        temp_dir.path().join("custom_build_dir/subdir/nested.tsx"),
+        r#"export const Nested = () => <div className="p-4 bg-red-500 flex">Nested ignored</div>;"#,
+    )
+    .expect("Failed to write nested ignored file");
+
+    // Create .windwarden.json config with custom ignore patterns
+    let config_content = r#"{
+  "ignorePaths": [
+    "node_modules",
+    "custom_build_dir",
+    ".git"
+  ]
+}"#;
+    fs::write(temp_dir.path().join(".windwarden.json"), config_content)
+        .expect("Failed to write config file");
+
+    // Run windwarden with config - should only process component.tsx and utils.ts
+    let mut cmd = Command::cargo_bin("windwarden").unwrap();
+    cmd.arg("--config")
+        .arg(temp_dir.path().join(".windwarden.json"))
+        .arg("format")
+        .arg("--mode")
+        .arg("check")
+        .arg("--stats")
+        .arg(temp_dir.path())
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Total files: 2")) // component.tsx and utils.ts found, but only component.tsx needs formatting
+        .stdout(predicate::str::contains("would be formatted"));
+}
+
+#[test]
+fn test_json_config_glob_patterns() {
+    let temp_dir = TempDir::new().expect("Failed to create temp directory");
+
+    // Create various files
+    fs::write(
+        temp_dir.path().join("component.tsx"),
+        r#"export const Component = () => <div className="p-4 bg-red-500 flex">Component</div>;"#,
+    )
+    .expect("Failed to write component file");
+
+    fs::create_dir_all(temp_dir.path().join("tests"))
+        .expect("Failed to create tests dir");
+    
+    fs::write(
+        temp_dir.path().join("tests/component.test.tsx"),
+        r#"test('renders', () => <div className="p-4 bg-red-500 flex">Test</div>);"#,
+    )
+    .expect("Failed to write test file");
+
+    fs::create_dir_all(temp_dir.path().join("src/__tests__"))
+        .expect("Failed to create __tests__ dir");
+    
+    fs::write(
+        temp_dir.path().join("src/__tests__/utils.test.ts"),
+        r#"test('utils', () => {});"#,
+    )
+    .expect("Failed to write utils test file");
+
+    // Create config with glob patterns
+    let config_content = r#"{
+  "ignorePaths": [
+    "**/*.test.*",
+    "**/__tests__/**"
+  ]
+}"#;
+    fs::write(temp_dir.path().join(".windwarden.json"), config_content)
+        .expect("Failed to write config file");
+
+    // Run windwarden - should only process component.tsx, not test files
+    let mut cmd = Command::cargo_bin("windwarden").unwrap();
+    cmd.arg("--config")
+        .arg(temp_dir.path().join(".windwarden.json"))
+        .arg("format")
+        .arg("--mode")
+        .arg("check")
+        .arg("--stats")
+        .arg(temp_dir.path())
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Total files: 2")) // Only component.tsx processed, test files excluded
+        .stdout(predicate::str::contains("would be formatted"));
+}
+
+#[test]
+fn test_cli_exclude_overrides_config() {
+    let temp_dir = TempDir::new().expect("Failed to create temp directory");
+
+    // Create source files
+    fs::write(
+        temp_dir.path().join("component.tsx"),
+        r#"export const Component = () => <div className="p-4 bg-red-500 flex">Component</div>;"#,
+    )
+    .expect("Failed to write component file");
+
+    fs::create_dir_all(temp_dir.path().join("special"))
+        .expect("Failed to create special dir");
+    
+    fs::write(
+        temp_dir.path().join("special/excluded.tsx"),
+        r#"export const Excluded = () => <div className="p-4 bg-red-500 flex">Excluded</div>;"#,
+    )
+    .expect("Failed to write excluded file");
+
+    // Create config that doesn't exclude 'special' directory
+    let config_content = r#"{
+  "ignorePaths": [
+    "node_modules"
+  ]
+}"#;
+    fs::write(temp_dir.path().join(".windwarden.json"), config_content)
+        .expect("Failed to write config file");
+
+    // Run windwarden with CLI exclude that should override/add to config
+    let mut cmd = Command::cargo_bin("windwarden").unwrap();
+    cmd.arg("--config")
+        .arg(temp_dir.path().join(".windwarden.json"))
+        .arg("format")
+        .arg("--mode")
+        .arg("check")
+        .arg("--exclude")
+        .arg("special/**")
+        .arg("--stats")
+        .arg(temp_dir.path())
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Total files: 1")) // Only component.tsx
+        .stdout(predicate::str::contains("would be formatted"));
+}
+
+#[test]
+fn test_default_ignore_patterns_from_config() {
+    let temp_dir = TempDir::new().expect("Failed to create temp directory");
+
+    // Create source file
+    fs::write(
+        temp_dir.path().join("component.tsx"),
+        r#"export const Component = () => <div className="p-4 bg-red-500 flex">Component</div>;"#,
+    )
+    .expect("Failed to write component file");
+
+    // Create directories that should be ignored by default config
+    for dir in &["node_modules", ".next", "dist", "target"] {
+        fs::create_dir_all(temp_dir.path().join(format!("{}/subdir", dir)))
+            .expect("Failed to create default ignore dir");
+        
+        fs::write(
+            temp_dir.path().join(format!("{}/should_be_ignored.tsx", dir)),
+            r#"export const Ignored = () => <div className="p-4 bg-red-500 flex">Should be ignored</div>;"#,
+        )
+        .expect("Failed to write ignored file");
+    }
+
+    // Run windwarden without explicit config - should use defaults and ignore standard directories
+    let mut cmd = Command::cargo_bin("windwarden").unwrap();
+    cmd.arg("format")
+        .arg("--mode")
+        .arg("check")
+        .arg("--stats")
+        .arg(temp_dir.path())
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Total files: 1")) // Only component.tsx
+        .stdout(predicate::str::contains("would be formatted"));
+}
+
+#[test]
 fn test_parallel_processing() {
     let temp_dir = create_test_directory();
 
