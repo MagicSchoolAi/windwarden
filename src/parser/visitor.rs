@@ -176,7 +176,40 @@ impl<'a> ClassExtractor<'a> {
             .any(|token| self.matches_tailwind_pattern(token))
     }
 
-    fn matches_tailwind_pattern(&self, token: &str) -> bool {
+    fn matches_tailwind_pattern(&self, mut token: &str) -> bool {
+        // Handle modifiers iteratively to avoid recursion warnings
+        loop {
+            // Check for responsive prefixes (sm:, md:, lg:, xl:, 2xl:)
+            if let Some(colon_pos) = token.find(':') {
+                let prefix = &token[..colon_pos];
+                if [
+                    "sm", "md", "lg", "xl", "2xl", "dark", "hover", "focus", "active", "first",
+                    "last", "odd", "even",
+                ]
+                .contains(&prefix)
+                {
+                    token = &token[colon_pos + 1..];
+                    continue;
+                }
+            }
+
+            // Check for negative values (-m-4, -mt-2, etc.)
+            if token.starts_with('-') && token.len() > 1 {
+                token = &token[1..];
+                continue;
+            }
+
+            // Check for important modifier (space-y-4!, bg-red-500!, etc.)
+            if token.ends_with('!') && token.len() > 1 {
+                token = &token[..token.len() - 1];
+                continue;
+            }
+
+            // No more modifiers to strip
+            break;
+        }
+
+        // Now check the core token
         // Known Tailwind prefixes
         let common_prefixes = [
             // Layout
@@ -319,44 +352,13 @@ impl<'a> ClassExtractor<'a> {
         ];
 
         // Check for exact matches or prefix matches
-        if common_prefixes.iter().any(|prefix| {
+        common_prefixes.iter().any(|prefix| {
             if prefix.ends_with('-') {
                 token.starts_with(prefix)
             } else {
                 token == *prefix
             }
-        }) {
-            return true;
-        }
-
-        // Check for responsive prefixes (sm:, md:, lg:, xl:, 2xl:)
-        if token.contains(':') {
-            let parts: Vec<&str> = token.split(':').collect();
-            if parts.len() == 2 {
-                let prefix = parts[0];
-                let class = parts[1];
-                if [
-                    "sm", "md", "lg", "xl", "2xl", "dark", "hover", "focus", "active", "first",
-                    "last", "odd", "even",
-                ]
-                .contains(&prefix)
-                {
-                    return self.matches_tailwind_pattern(class);
-                }
-            }
-        }
-
-        // Check for negative values (-m-4, -mt-2, etc.)
-        if token.starts_with('-') && token.len() > 1 {
-            return self.matches_tailwind_pattern(&token[1..]);
-        }
-
-        // Check for important modifier (space-y-4!, bg-red-500!, etc.)
-        if token.ends_with('!') && token.len() > 1 {
-            return self.matches_tailwind_pattern(&token[..token.len() - 1]);
-        }
-
-        false
+        })
     }
 
     fn is_static_template_literal(&self, template: &TemplateLiteral) -> bool {
