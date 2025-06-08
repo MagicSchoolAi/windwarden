@@ -16,16 +16,6 @@ pub struct Cli {
     #[arg(long, help = "Read code from stdin and output to stdout")]
     pub stdin: bool,
 
-    /// Preview changes without writing (legacy flag - use 'format --mode check' instead)
-    #[arg(long, help = "Show what changes would be made without modifying files")]
-    pub dry_run: bool,
-
-    /// Check if files are formatted (legacy flag - use 'format --mode verify' instead)
-    #[arg(
-        long,
-        help = "Exit with code 1 if files need formatting, 0 if already formatted"
-    )]
-    pub check_formatted: bool,
 
     /// Configuration file path (searches for .windwarden.json by default)
     #[arg(short, long, help = "Path to configuration file", value_name = "FILE")]
@@ -55,20 +45,6 @@ pub enum OperationMode {
 
 #[derive(Subcommand)]
 pub enum Commands {
-    /// Process a specific file (legacy command)
-    Process {
-        /// File to process
-        file: String,
-
-        /// Preview changes without writing
-        #[arg(long)]
-        dry_run: bool,
-
-        /// Write changes to file
-        #[arg(long)]
-        write: bool,
-    },
-
     /// 🎨 Format Tailwind CSS classes in files and directories  
     #[command(
         after_help = "Examples:\n  windwarden format src/                         # Preview changes in src/\n  windwarden format --mode write src/ tests/    # Format multiple directories\n  windwarden format --mode verify .             # Check if project is formatted\n  windwarden format --extensions tsx,jsx src/   # Process only specific file types"
