@@ -170,31 +170,39 @@ impl<'a> ClassExtractor<'a> {
         // Known Tailwind prefixes
         let common_prefixes = [
             // Layout
-            "block", "inline", "flex", "grid", "table", "hidden",
+            "block", "inline", "flex", "grid", "table", "hidden", "relative", "absolute", "fixed", "sticky",
+            "static", "inset-", "top-", "right-", "bottom-", "left-", "z-", "float-", "clear-", "object-",
+            "overflow-", "overscroll-", "position-", "visible", "invisible", "collapse",
+            // Container Queries
+            "@container", "@apply", "@screen", "@layer",
             // Flexbox & Grid
-            "items-", "justify-", "gap-", "grid-", "col-", "row-",
+            "items-", "justify-", "gap-", "grid-", "col-", "row-", "flex-", "order-",
+            "justify-self-", "justify-items-", "content-", "items-", "self-",
             // Spacing
             "p-", "px-", "py-", "pt-", "pr-", "pb-", "pl-",
             "m-", "mx-", "my-", "mt-", "mr-", "mb-", "ml-",
             "space-", "-space-",
             // Sizing
-            "w-", "h-", "min-w-", "min-h-", "max-w-", "max-h-",
+            "w-", "h-", "min-w-", "min-h-", "max-w-", "max-h-", "size-",
             // Typography
-            "text-", "font-", "leading-", "tracking-", "line-",
+            "text-", "font-", "leading-", "tracking-", "line-", "list-", "placeholder-",
+            "decoration-", "underline", "overline", "line-through", "no-underline",
             // Backgrounds
-            "bg-", "from-", "via-", "to-",
+            "bg-", "from-", "via-", "to-", "gradient-",
             // Borders
-            "border", "border-", "rounded", "rounded-",
+            "border", "border-", "rounded", "rounded-", "divide-", "outline-",
             // Effects
-            "shadow", "shadow-", "opacity-", "ring-", "ring-",
+            "shadow", "shadow-", "opacity-", "ring-", "ring-", "drop-shadow-",
             // Filters
-            "blur-", "brightness-", "contrast-", "grayscale", "invert",
+            "blur-", "brightness-", "contrast-", "grayscale", "invert", "saturate-",
+            "sepia", "hue-rotate-", "filter", "backdrop-",
             // Transforms
-            "transform", "rotate-", "scale-", "translate-", "skew-",
+            "transform", "rotate-", "scale-", "translate-", "skew-", "origin-",
             // Transitions
-            "transition", "duration-", "ease-", "delay-",
+            "transition", "duration-", "ease-", "delay-", "animate-",
             // Interactivity
-            "cursor-", "select-", "pointer-events-", "resize",
+            "cursor-", "select-", "pointer-events-", "resize", "scroll-", "snap-",
+            "touch-", "will-change-",
         ];
 
         // Check for exact matches or prefix matches
@@ -422,35 +430,51 @@ impl<'a> Visit<'a> for ClassExtractor<'a> {
     }
 
     fn visit_array_expression(&mut self, array: &ArrayExpression<'a>) {
-        // Collect all string literals from the array
+        // Collect string literals from the array and check if they look like classes
         let mut string_elements = Vec::new();
-        let mut all_strings = true;
+        let mut tailwind_elements = Vec::new();
         let mut quote_style = QuoteStyle::Double; // Default
+        let mut total_strings = 0;
 
         for element in &array.elements {
             match element {
                 ArrayExpressionElement::StringLiteral(string_lit) => {
                     let content = self.extract_class_string_content(string_lit.span);
+                    string_elements.push(content.clone());
+                    total_strings += 1;
+                    
+                    // Use the quote style from the first element for consistency
+                    if total_strings == 1 {
+                        quote_style = self.detect_quote_style(string_lit.span);
+                    }
+                    
+                    // Check if this specific element looks like Tailwind classes
                     if self.looks_like_tailwind_classes(&content) {
-                        string_elements.push(content);
-                        // Use the quote style from the first element for consistency
-                        if string_elements.len() == 1 {
-                            quote_style = self.detect_quote_style(string_lit.span);
-                        }
-                    } else {
-                        all_strings = false;
-                        break;
+                        tailwind_elements.push(content);
                     }
                 }
                 _ => {
-                    all_strings = false;
-                    break;
+                    // Non-string elements make this not a pure class array
+                    // Continue normal visiting for mixed arrays
+                    for element in &array.elements {
+                        if let Some(expr) = element.as_expression() {
+                            self.visit_expression(expr);
+                        }
+                    }
+                    return;
                 }
             }
         }
 
-        // If all elements are Tailwind class strings, treat as a sortable array
-        if all_strings && !string_elements.is_empty() {
+        // If all elements are strings AND most look like Tailwind classes, process as array
+        // We allow some non-Tailwind classes (like custom classes) as long as most are recognizable
+        let tailwind_ratio = if total_strings > 0 {
+            tailwind_elements.len() as f32 / total_strings as f32
+        } else {
+            0.0
+        };
+
+        if total_strings > 0 && (tailwind_ratio >= 0.5 || string_elements.len() == 1) {
             let span_key = (array.span.start as usize, array.span.end as usize);
 
             // Skip if already processed
@@ -470,13 +494,6 @@ impl<'a> Visit<'a> for ClassExtractor<'a> {
                     },
                 );
                 self.matches.push(class_match);
-            }
-        } else {
-            // For mixed arrays or non-Tailwind arrays, continue normal visiting
-            for element in &array.elements {
-                if let Some(expr) = element.as_expression() {
-                    self.visit_expression(expr);
-                }
             }
         }
     }
