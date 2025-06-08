@@ -152,9 +152,10 @@ fn handle_format_command(
 
     // Add ignore patterns from JSON configuration
     config.exclude_patterns.extend(
-        config_manager.get_ignore_patterns()
+        config_manager
+            .get_ignore_patterns()
             .iter()
-            .map(|p| format!("{}/**", p)) // Convert directory names to glob patterns
+            .map(|p| format!("{}/**", p)), // Convert directory names to glob patterns
     );
 
     config.max_depth = options.max_depth;

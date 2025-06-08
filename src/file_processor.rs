@@ -183,7 +183,7 @@ impl FileDiscovery {
     /// Check if a path is excluded by patterns
     fn is_excluded(&self, path: &Path) -> bool {
         let excluded_dirs = self.get_excluded_directories();
-        
+
         // Check if any component of the path matches an exclude pattern
         for component in path.components() {
             if let std::path::Component::Normal(name) = component {

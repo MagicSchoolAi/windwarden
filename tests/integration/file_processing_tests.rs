@@ -295,7 +295,7 @@ fn test_json_config_ignore_patterns() {
     // Create directories that should be ignored via JSON config
     fs::create_dir_all(temp_dir.path().join("custom_build_dir/subdir"))
         .expect("Failed to create custom_build_dir");
-    
+
     fs::write(
         temp_dir.path().join("custom_build_dir/should_be_ignored.tsx"),
         r#"export const Ignored = () => <div className="p-4 bg-red-500 flex">Should be ignored</div>;"#,
@@ -345,9 +345,8 @@ fn test_json_config_glob_patterns() {
     )
     .expect("Failed to write component file");
 
-    fs::create_dir_all(temp_dir.path().join("tests"))
-        .expect("Failed to create tests dir");
-    
+    fs::create_dir_all(temp_dir.path().join("tests")).expect("Failed to create tests dir");
+
     fs::write(
         temp_dir.path().join("tests/component.test.tsx"),
         r#"test('renders', () => <div className="p-4 bg-red-500 flex">Test</div>);"#,
@@ -356,7 +355,7 @@ fn test_json_config_glob_patterns() {
 
     fs::create_dir_all(temp_dir.path().join("src/__tests__"))
         .expect("Failed to create __tests__ dir");
-    
+
     fs::write(
         temp_dir.path().join("src/__tests__/utils.test.ts"),
         r#"test('utils', () => {});"#,
@@ -399,9 +398,8 @@ fn test_cli_exclude_overrides_config() {
     )
     .expect("Failed to write component file");
 
-    fs::create_dir_all(temp_dir.path().join("special"))
-        .expect("Failed to create special dir");
-    
+    fs::create_dir_all(temp_dir.path().join("special")).expect("Failed to create special dir");
+
     fs::write(
         temp_dir.path().join("special/excluded.tsx"),
         r#"export const Excluded = () => <div className="p-4 bg-red-500 flex">Excluded</div>;"#,
@@ -449,7 +447,7 @@ fn test_default_ignore_patterns_from_config() {
     for dir in &["node_modules", ".next", "dist", "target"] {
         fs::create_dir_all(temp_dir.path().join(format!("{}/subdir", dir)))
             .expect("Failed to create default ignore dir");
-        
+
         fs::write(
             temp_dir.path().join(format!("{}/should_be_ignored.tsx", dir)),
             r#"export const Ignored = () => <div className="p-4 bg-red-500 flex">Should be ignored</div>;"#,
