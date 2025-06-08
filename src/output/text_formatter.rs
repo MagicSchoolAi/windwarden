@@ -1,6 +1,6 @@
 // This file contains the text formatting functionality from the original output.rs
+use crate::diff::{DiffFormatter, FileDiff};
 use crate::file_processor::BatchProcessingResults;
-use crate::diff::{FileDiff, DiffFormatter};
 use colored::Colorize;
 use std::time::Duration;
 
@@ -13,7 +13,7 @@ pub struct OutputFormatter {
 
 impl OutputFormatter {
     pub fn new(show_stats: bool) -> Self {
-        Self { 
+        Self {
             show_stats,
             show_diff: false,
             diff_formatter: DiffFormatter::new(),
@@ -26,24 +26,31 @@ impl OutputFormatter {
     }
 
     /// Format results for check mode (preview)
-    pub fn format_check_results(&self, results: &BatchProcessingResults, duration: Option<Duration>) -> String {
+    pub fn format_check_results(
+        &self,
+        results: &BatchProcessingResults,
+        duration: Option<Duration>,
+    ) -> String {
         let mut output = Vec::new();
-        
+
         // Show diffs if requested
         if self.show_diff {
-            let changed_files: Vec<_> = results.results
+            let changed_files: Vec<_> = results
+                .results
                 .iter()
                 .filter(|r| r.changes_made && r.success)
                 .collect();
 
             for result in &changed_files {
-                if let (Some(original), Some(processed)) = (&result.original_content, &result.processed_content) {
+                if let (Some(original), Some(processed)) =
+                    (&result.original_content, &result.processed_content)
+                {
                     let diff = FileDiff::new(
                         result.file_path.display().to_string(),
                         original.clone(),
                         processed.clone(),
                     );
-                    
+
                     if diff.has_changes {
                         output.push(self.diff_formatter.format_diff(&diff));
                         output.push(String::new()); // Empty line between files
@@ -51,13 +58,14 @@ impl OutputFormatter {
                 }
             }
         }
-        
+
         // Show changed files summary
-        let changed_files: Vec<_> = results.results
+        let changed_files: Vec<_> = results
+            .results
             .iter()
             .filter(|r| r.changes_made && r.success)
             .collect();
-        
+
         if !changed_files.is_empty() && !self.show_diff {
             // Only show file list if we're not already showing diffs
             output.push("Files that would be formatted:".green().bold().to_string());
@@ -67,52 +75,62 @@ impl OutputFormatter {
             }
             output.push(String::new());
         }
-        
+
         // Show failed files
-        let failed_files: Vec<_> = results.results
-            .iter()
-            .filter(|r| !r.success)
-            .collect();
-        
+        let failed_files: Vec<_> = results.results.iter().filter(|r| !r.success).collect();
+
         if !failed_files.is_empty() {
             output.push("Failed to process:".red().bold().to_string());
             for result in &failed_files {
                 let file_path = result.file_path.display();
                 let error = result.error.as_deref().unwrap_or("Unknown error");
-                output.push(format!("  {}: {}", file_path.to_string().cyan(), error.red()));
+                output.push(format!(
+                    "  {}: {}",
+                    file_path.to_string().cyan(),
+                    error.red()
+                ));
             }
             output.push(String::new());
         }
-        
+
         // Summary
         if results.files_with_changes > 0 {
             output.push(format!(
                 "{} {} would be formatted",
                 results.files_with_changes.to_string().yellow().bold(),
-                if results.files_with_changes == 1 { "file" } else { "files" }
+                if results.files_with_changes == 1 {
+                    "file"
+                } else {
+                    "files"
+                }
             ));
         } else {
             output.push("All files are already formatted!".green().to_string());
         }
-        
+
         if self.show_stats {
             output.push(String::new());
             output.push(self.format_statistics(results, duration));
         }
-        
+
         output.join("\n")
     }
 
     /// Format results for write mode
-    pub fn format_write_results(&self, results: &BatchProcessingResults, duration: Option<Duration>) -> String {
+    pub fn format_write_results(
+        &self,
+        results: &BatchProcessingResults,
+        duration: Option<Duration>,
+    ) -> String {
         let mut output = Vec::new();
-        
+
         // Show formatted files
-        let formatted_files: Vec<_> = results.results
+        let formatted_files: Vec<_> = results
+            .results
             .iter()
             .filter(|r| r.changes_made && r.success)
             .collect();
-        
+
         if !formatted_files.is_empty() {
             output.push("Formatted files:".green().bold().to_string());
             for result in &formatted_files {
@@ -121,52 +139,62 @@ impl OutputFormatter {
             }
             output.push(String::new());
         }
-        
+
         // Show failed files
-        let failed_files: Vec<_> = results.results
-            .iter()
-            .filter(|r| !r.success)
-            .collect();
-        
+        let failed_files: Vec<_> = results.results.iter().filter(|r| !r.success).collect();
+
         if !failed_files.is_empty() {
             output.push("Failed to process:".red().bold().to_string());
             for result in &failed_files {
                 let file_path = result.file_path.display();
                 let error = result.error.as_deref().unwrap_or("Unknown error");
-                output.push(format!("  {}: {}", file_path.to_string().cyan(), error.red()));
+                output.push(format!(
+                    "  {}: {}",
+                    file_path.to_string().cyan(),
+                    error.red()
+                ));
             }
             output.push(String::new());
         }
-        
+
         // Summary
         if results.files_with_changes > 0 {
             output.push(format!(
                 "{} {} formatted",
                 results.files_with_changes.to_string().green().bold(),
-                if results.files_with_changes == 1 { "file" } else { "files" }
+                if results.files_with_changes == 1 {
+                    "file"
+                } else {
+                    "files"
+                }
             ));
         } else {
             output.push("No files needed formatting!".green().to_string());
         }
-        
+
         if self.show_stats {
             output.push(String::new());
             output.push(self.format_statistics(results, duration));
         }
-        
+
         output.join("\n")
     }
 
     /// Format results for verify mode
-    pub fn format_verify_results(&self, results: &BatchProcessingResults, duration: Option<Duration>) -> String {
+    pub fn format_verify_results(
+        &self,
+        results: &BatchProcessingResults,
+        duration: Option<Duration>,
+    ) -> String {
         let mut output = Vec::new();
-        
+
         // Show unformatted files
-        let unformatted_files: Vec<_> = results.results
+        let unformatted_files: Vec<_> = results
+            .results
             .iter()
             .filter(|r| r.changes_made && r.success)
             .collect();
-        
+
         if !unformatted_files.is_empty() {
             output.push("Unformatted files:".red().bold().to_string());
             for result in &unformatted_files {
@@ -175,75 +203,99 @@ impl OutputFormatter {
             }
             output.push(String::new());
         }
-        
+
         // Show failed files
-        let failed_files: Vec<_> = results.results
-            .iter()
-            .filter(|r| !r.success)
-            .collect();
-        
+        let failed_files: Vec<_> = results.results.iter().filter(|r| !r.success).collect();
+
         if !failed_files.is_empty() {
             output.push("Failed to process:".red().bold().to_string());
             for result in &failed_files {
                 let file_path = result.file_path.display();
                 let error = result.error.as_deref().unwrap_or("Unknown error");
-                output.push(format!("  {}: {}", file_path.to_string().cyan(), error.red()));
+                output.push(format!(
+                    "  {}: {}",
+                    file_path.to_string().cyan(),
+                    error.red()
+                ));
             }
             output.push(String::new());
         }
-        
+
         // Summary
         if results.files_with_changes > 0 {
             output.push(format!(
                 "{} {} not formatted",
                 results.files_with_changes.to_string().red().bold(),
-                if results.files_with_changes == 1 { "file" } else { "files" }
+                if results.files_with_changes == 1 {
+                    "file"
+                } else {
+                    "files"
+                }
             ));
         } else {
             output.push("All files are properly formatted!".green().to_string());
         }
-        
+
         if self.show_stats {
             output.push(String::new());
             output.push(self.format_statistics(results, duration));
         }
-        
+
         output.join("\n")
     }
 
     /// Format processing statistics
-    fn format_statistics(&self, results: &BatchProcessingResults, duration: Option<Duration>) -> String {
+    fn format_statistics(
+        &self,
+        results: &BatchProcessingResults,
+        duration: Option<Duration>,
+    ) -> String {
         let mut stats = Vec::new();
-        
+
         stats.push("Statistics:".bold().to_string());
         stats.push(format!("  Total files: {}", results.total_files));
         stats.push(format!("  Processed: {}", results.processed_files));
         stats.push(format!("  Changed: {}", results.files_with_changes));
         stats.push(format!("  Failed: {}", results.failed_files));
-        stats.push(format!("  Success rate: {:.1}%", results.success_rate() * 100.0));
-        
+        stats.push(format!(
+            "  Success rate: {:.1}%",
+            results.success_rate() * 100.0
+        ));
+
         if let Some(duration) = duration {
             stats.push(format!("  Duration: {:.2}s", duration.as_secs_f64()));
-            
+
             if results.total_files > 0 {
                 let files_per_sec = results.total_files as f64 / duration.as_secs_f64();
                 stats.push(format!("  Files/sec: {:.1}", files_per_sec));
             }
         }
-        
+
         stats.join("\n")
     }
 
     /// Determine exit code based on operation mode and results
-    pub fn get_exit_code(&self, operation_mode: &crate::cli::OperationMode, results: &BatchProcessingResults) -> i32 {
+    pub fn get_exit_code(
+        &self,
+        operation_mode: &crate::cli::OperationMode,
+        results: &BatchProcessingResults,
+    ) -> i32 {
         match operation_mode {
             crate::cli::OperationMode::Check | crate::cli::OperationMode::Write => {
                 // For check and write modes, exit with error only if there were failures
-                if results.failed_files > 0 { 1 } else { 0 }
+                if results.failed_files > 0 {
+                    1
+                } else {
+                    0
+                }
             }
             crate::cli::OperationMode::Verify => {
                 // For verify mode, exit with error if files need formatting or there were failures
-                if results.files_with_changes > 0 || results.failed_files > 0 { 1 } else { 0 }
+                if results.files_with_changes > 0 || results.failed_files > 0 {
+                    1
+                } else {
+                    0
+                }
             }
         }
     }
@@ -287,7 +339,9 @@ impl ProgressReporter {
         }
 
         let now = Instant::now();
-        if now.duration_since(self.last_update) < self.update_interval && self.get_current() < self.total {
+        if now.duration_since(self.last_update) < self.update_interval
+            && self.get_current() < self.total
+        {
             return;
         }
 
@@ -303,7 +357,7 @@ impl ProgressReporter {
 
         let current = self.get_current();
         let elapsed = self.start_time.elapsed();
-        
+
         if self.total < 10 {
             // For small file counts, just show simple progress
             eprint!("\rProcessing files: {}/{}", current, self.total);
@@ -311,14 +365,15 @@ impl ProgressReporter {
             // For larger file counts, show detailed progress with ETA
             let percentage = (current as f64 / self.total as f64) * 100.0;
             let progress_bar = self.create_progress_bar(percentage);
-            
+
             if current > 0 && current < self.total {
                 // Estimate time remaining
                 let rate = current as f64 / elapsed.as_secs_f64();
                 let remaining = (self.total - current) as f64 / rate;
                 let eta = Duration::from_secs_f64(remaining);
-                
-                eprint!("\r{} {}/{} ({:.1}%) ETA: {}",
+
+                eprint!(
+                    "\r{} {}/{} ({:.1}%) ETA: {}",
                     progress_bar,
                     current,
                     self.total,
@@ -326,11 +381,9 @@ impl ProgressReporter {
                     self.format_duration(eta)
                 );
             } else {
-                eprint!("\r{} {}/{} ({:.1}%)",
-                    progress_bar,
-                    current,
-                    self.total,
-                    percentage
+                eprint!(
+                    "\r{} {}/{} ({:.1}%)",
+                    progress_bar, current, self.total, percentage
                 );
             }
         }
@@ -339,7 +392,8 @@ impl ProgressReporter {
             // Show completion message
             let total_time = self.start_time.elapsed();
             let rate = self.total as f64 / total_time.as_secs_f64();
-            eprintln!("\r✅ Processed {} files in {} ({:.1} files/sec)",
+            eprintln!(
+                "\r✅ Processed {} files in {} ({:.1} files/sec)",
                 self.total,
                 self.format_duration(total_time),
                 rate
@@ -357,11 +411,8 @@ impl ProgressReporter {
         let width = 20;
         let filled = ((percentage / 100.0) * width as f64) as usize;
         let empty = width - filled;
-        
-        format!("[{}{}]", 
-            "█".repeat(filled),
-            "░".repeat(empty)
-        )
+
+        format!("[{}{}]", "█".repeat(filled), "░".repeat(empty))
     }
 
     /// Format duration in a human-readable way

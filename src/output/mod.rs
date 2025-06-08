@@ -25,7 +25,7 @@ pub enum OutputFormat {
 
 impl std::str::FromStr for OutputFormat {
     type Err = String;
-    
+
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.to_lowercase().as_str() {
             "text" => Ok(OutputFormat::Text),
@@ -33,7 +33,10 @@ impl std::str::FromStr for OutputFormat {
             "check" => Ok(OutputFormat::Check),
             "diff" => Ok(OutputFormat::Diff),
             "summary" => Ok(OutputFormat::Summary),
-            _ => Err(format!("Invalid output format '{}'. Valid options: text, json, check, diff, summary", s)),
+            _ => Err(format!(
+                "Invalid output format '{}'. Valid options: text, json, check, diff, summary",
+                s
+            )),
         }
     }
 }
@@ -242,7 +245,7 @@ impl FileResult {
             fixable_warning_count: 0,
         }
     }
-    
+
     pub fn add_issue(&mut self, issue: Issue) {
         match issue.severity {
             Severity::Error => {
@@ -265,6 +268,12 @@ impl FileResult {
     }
 }
 
+impl Default for DiagnosticReport {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl DiagnosticReport {
     pub fn new() -> Self {
         Self {
@@ -277,13 +286,19 @@ impl DiagnosticReport {
             fixable_warning_count: 0,
         }
     }
-    
+
     pub fn add_file_result(&mut self, file_result: FileResult) {
         self.error_count += file_result.error_count;
         self.warning_count += file_result.warning_count;
         self.fixable_error_count += file_result.fixable_error_count;
         self.fixable_warning_count += file_result.fixable_warning_count;
         self.results.push(file_result);
+    }
+}
+
+impl Default for CheckReport {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -302,6 +317,12 @@ impl CheckReport {
     }
 }
 
+impl Default for DiffReport {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl DiffReport {
     pub fn new() -> Self {
         Self {
@@ -315,6 +336,12 @@ impl DiffReport {
             },
             changes: Vec::new(),
         }
+    }
+}
+
+impl Default for SummaryReport {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

@@ -61,6 +61,9 @@ harness = false
 name = "optimization_comparison"
 harness = false
 
+[features]
+performance-profiling = []
+
 [profile.release]
 lto = true
 codegen-units = 1

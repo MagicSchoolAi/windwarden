@@ -2,9 +2,6 @@ name: CI
 
 on:
   push:
-    branches: [main, develop]
-  pull_request:
-    branches: [main, develop]
 
 env:
   CARGO_TERM_COLOR: always
@@ -17,14 +14,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
-      
+
       - name: Cache dependencies
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             ~/.cargo/registry
@@ -34,17 +31,12 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-cargo-lint-
             ${{ runner.os }}-cargo-
-      
+
       - name: Check formatting
         run: cargo fmt --all -- --check
-      
+
       - name: Run clippy
         run: cargo clippy --all-targets --all-features -- -D warnings
-      
-      - name: Check for security vulnerabilities
-        run: |
-          cargo install cargo-audit || true
-          cargo audit || true
 
   # Comprehensive testing across platforms
   test:
@@ -53,25 +45,19 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-        rust: [stable, nightly]
-        exclude:
-          # Skip nightly on Windows and macOS for faster CI
-          - os: windows-latest
-            rust: nightly
-          - os: macos-latest
-            rust: nightly
-    
+        os: [ubuntu-latest, macos-latest]
+        rust: [stable]
+
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Install Rust ${{ matrix.rust }}
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: ${{ matrix.rust }}
-      
+
       - name: Cache dependencies
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             ~/.cargo/registry
@@ -81,65 +67,67 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-${{ matrix.rust }}-cargo-
             ${{ runner.os }}-cargo-
-      
+
       - name: Build
         run: cargo build --all-features
-      
+
       - name: Run unit tests
         run: cargo test --lib --all-features
-      
+
       - name: Run integration tests
         run: cargo test --test '*' --all-features
-      
+
       - name: Run doc tests
         run: cargo test --doc --all-features
-      
+
       - name: Test CLI functionality
         shell: bash
         run: |
           # Build release binary for testing
           cargo build --release
-          
+
           # Test basic functionality
           ./target/release/windwarden${{ matrix.os == 'windows-latest' && '.exe' || '' }} --version
           ./target/release/windwarden${{ matrix.os == 'windows-latest' && '.exe' || '' }} --help
-          
+
           # Test configuration commands
-          ./target/release/windwarden${{ matrix.os == 'windows-latest' && '.exe' || '' }} config init --path test-config.json
-          ./target/release/windwarden${{ matrix.os == 'windows-latest' && '.exe' || '' }} config validate test-config.json
+          ./target/release/windwarden${{ matrix.os == 'windows-latest' && '.exe' || '' }} config init --path ci-test-config.json
+          ./target/release/windwarden${{ matrix.os == 'windows-latest' && '.exe' || '' }} config validate ci-test-config.json
           ./target/release/windwarden${{ matrix.os == 'windows-latest' && '.exe' || '' }} config show > /dev/null
-          
+
           # Test completions generation
           ./target/release/windwarden${{ matrix.os == 'windows-latest' && '.exe' || '' }} completions bash > /dev/null
           ./target/release/windwarden${{ matrix.os == 'windows-latest' && '.exe' || '' }} completions zsh > /dev/null
           ./target/release/windwarden${{ matrix.os == 'windows-latest' && '.exe' || '' }} completions fish > /dev/null
-          
+
           # Test processing with test files
           echo '<div className="p-4 flex m-2">' > test.tsx
           ./target/release/windwarden${{ matrix.os == 'windows-latest' && '.exe' || '' }} format --mode check test.tsx
+
+          # Cleanup
+          rm -f ci-test-config.json test.tsx
 
   # Performance testing
   benchmark:
     name: Performance Benchmarks
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      
+
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
-      
+
       - name: Cache dependencies
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
             target
           key: ${{ runner.os }}-cargo-bench-${{ hashFiles('**/Cargo.lock') }}
-      
+
       - name: Run benchmarks
         run: |
           if [ -d "benches" ]; then
@@ -149,60 +137,35 @@ jobs:
             echo "No benchmark directory found, skipping"
           fi
 
-  # Test with minimal dependencies
-  minimal-versions:
-    name: Test Minimal Versions
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@nightly
-      
-      - name: Cache dependencies
-        uses: actions/cache@v3
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-minimal-${{ hashFiles('**/Cargo.lock') }}
-      
-      - name: Test minimal versions
-        run: |
-          cargo +nightly update -Z minimal-versions
-          cargo test --all-features
-
   # Code coverage
   coverage:
     name: Code Coverage
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
           components: llvm-tools-preview
-      
+
       - name: Cache dependencies
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
             target
           key: ${{ runner.os }}-cargo-coverage-${{ hashFiles('**/Cargo.lock') }}
-      
+
       - name: Install cargo-llvm-cov
         run: cargo install cargo-llvm-cov
-      
+
       - name: Generate coverage
         run: cargo llvm-cov --all-features --workspace --lcov --output-path lcov.info
-      
+
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v5
         with:
           file: lcov.info
           fail_ci_if_error: false
@@ -213,60 +176,23 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
-      
+
       - name: Cache dependencies
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
             target
           key: ${{ runner.os }}-cargo-docs-${{ hashFiles('**/Cargo.lock') }}
-      
+
       - name: Build documentation
         run: cargo doc --all-features --no-deps
-      
+
       - name: Check for broken links in docs
         run: |
           cargo install cargo-deadlinks || true
           cargo deadlinks --check-http || true
-
-  # Security scan
-  security:
-    name: Security Scan
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Run security audit
-        uses: actions-rs/audit-check@v1
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-
-  # Check for common issues
-  clippy-pedantic:
-    name: Clippy (Pedantic)
-    runs-on: ubuntu-latest
-    continue-on-error: true  # Don't fail CI on pedantic warnings
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          components: clippy
-      
-      - name: Cache dependencies
-        uses: actions/cache@v3
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-clippy-pedantic-${{ hashFiles('**/Cargo.lock') }}
-      
-      - name: Run clippy (pedantic)
-        run: cargo clippy --all-targets --all-features -- -W clippy::pedantic

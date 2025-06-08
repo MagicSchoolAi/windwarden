@@ -1,5 +1,5 @@
-use std::time::{Duration, Instant};
 use std::collections::HashMap;
+use std::time::{Duration, Instant};
 
 /// Performance metrics tracking for identifying bottlenecks
 #[derive(Debug, Clone)]
@@ -10,6 +10,12 @@ pub struct PerformanceMetrics {
     pub total_time: Duration,
     pub file_size: usize,
     pub class_count: usize,
+}
+
+impl Default for PerformanceMetrics {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl PerformanceMetrics {
@@ -23,7 +29,7 @@ impl PerformanceMetrics {
             class_count: 0,
         }
     }
-    
+
     pub fn classes_per_second(&self) -> f64 {
         if self.total_time.as_secs_f64() > 0.0 {
             self.class_count as f64 / self.total_time.as_secs_f64()
@@ -31,7 +37,7 @@ impl PerformanceMetrics {
             0.0
         }
     }
-    
+
     pub fn bytes_per_second(&self) -> f64 {
         if self.total_time.as_secs_f64() > 0.0 {
             self.file_size as f64 / self.total_time.as_secs_f64()
@@ -48,6 +54,12 @@ pub struct PerformanceProfiler {
     current_operation: Option<(String, Instant)>,
 }
 
+impl Default for PerformanceProfiler {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl PerformanceProfiler {
     pub fn new() -> Self {
         Self {
@@ -56,49 +68,54 @@ impl PerformanceProfiler {
             current_operation: None,
         }
     }
-    
+
     pub fn start_operation(&mut self, name: &str) {
         if let Some((prev_name, prev_start)) = self.current_operation.take() {
             // Finish previous operation
             let duration = prev_start.elapsed();
             self.timings.insert(prev_name, duration);
         }
-        
+
         self.current_operation = Some((name.to_string(), Instant::now()));
     }
-    
+
     pub fn finish_operation(&mut self) {
         if let Some((name, start)) = self.current_operation.take() {
             let duration = start.elapsed();
             self.timings.insert(name, duration);
         }
     }
-    
+
     pub fn get_total_time(&self) -> Duration {
         self.start_time.elapsed()
     }
-    
+
     pub fn get_operation_time(&self, name: &str) -> Option<Duration> {
         self.timings.get(name).copied()
     }
-    
+
     pub fn get_all_timings(&self) -> &HashMap<String, Duration> {
         &self.timings
     }
-    
+
     pub fn print_summary(&self) {
         println!("Performance Summary:");
         println!("==================");
-        
+
         let total = self.get_total_time();
         println!("Total time: {:.2}ms", total.as_secs_f64() * 1000.0);
-        
+
         let mut sorted_timings: Vec<_> = self.timings.iter().collect();
         sorted_timings.sort_by(|a, b| b.1.cmp(a.1));
-        
+
         for (name, duration) in sorted_timings {
             let percentage = (duration.as_secs_f64() / total.as_secs_f64()) * 100.0;
-            println!("  {}: {:.2}ms ({:.1}%)", name, duration.as_secs_f64() * 1000.0, percentage);
+            println!(
+                "  {}: {:.2}ms ({:.1}%)",
+                name,
+                duration.as_secs_f64() * 1000.0,
+                percentage
+            );
         }
     }
 }
@@ -112,6 +129,12 @@ pub struct MemoryMetrics {
     pub current_memory: usize,
 }
 
+impl Default for MemoryMetrics {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl MemoryMetrics {
     pub fn new() -> Self {
         Self {
@@ -121,7 +144,7 @@ impl MemoryMetrics {
             current_memory: 0,
         }
     }
-    
+
     pub fn allocate(&mut self, size: usize) {
         self.allocations += 1;
         self.current_memory += size;
@@ -129,12 +152,12 @@ impl MemoryMetrics {
             self.peak_memory_usage = self.current_memory;
         }
     }
-    
+
     pub fn deallocate(&mut self, size: usize) {
         self.deallocations += 1;
         self.current_memory = self.current_memory.saturating_sub(size);
     }
-    
+
     pub fn memory_efficiency(&self) -> f64 {
         if self.allocations > 0 {
             self.deallocations as f64 / self.allocations as f64
@@ -145,6 +168,7 @@ impl MemoryMetrics {
 }
 
 #[cfg(feature = "performance-profiling")]
+#[macro_export]
 macro_rules! profile_operation {
     ($profiler:expr, $operation:expr, $code:block) => {
         $profiler.start_operation($operation);
@@ -155,10 +179,9 @@ macro_rules! profile_operation {
 }
 
 #[cfg(not(feature = "performance-profiling"))]
+#[macro_export]
 macro_rules! profile_operation {
     ($profiler:expr, $operation:expr, $code:block) => {
         $code
     };
 }
-
-pub use profile_operation;

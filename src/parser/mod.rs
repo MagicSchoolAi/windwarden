@@ -22,7 +22,7 @@ impl FileParser {
             custom_functions: None,
         }
     }
-    
+
     pub fn new_with_custom_functions(custom_functions: Vec<String>) -> Self {
         Self {
             allocator: Allocator::default(),
@@ -35,18 +35,25 @@ impl FileParser {
         self.parse_source_with_path(source_text, source_type, file_path)
     }
 
-    pub fn parse_source(&self, source_text: &str, source_type: SourceType) -> Result<Vec<ClassMatch>> {
+    pub fn parse_source(
+        &self,
+        source_text: &str,
+        source_type: SourceType,
+    ) -> Result<Vec<ClassMatch>> {
         self.parse_source_with_path(source_text, source_type, "unknown")
     }
-    
-    pub fn parse_source_with_path(&self, source_text: &str, source_type: SourceType, file_path: &str) -> Result<Vec<ClassMatch>> {
+
+    pub fn parse_source_with_path(
+        &self,
+        source_text: &str,
+        source_type: SourceType,
+        file_path: &str,
+    ) -> Result<Vec<ClassMatch>> {
         // Wrap incomplete JSX in a component for parsing
         let (wrapped_source, offset) = self.wrap_jsx_if_needed(source_text);
-        
+
         let ParserReturn {
-            program,
-            errors,
-            ..
+            program, errors, ..
         } = Parser::new(&self.allocator, &wrapped_source, source_type).parse();
 
         if !errors.is_empty() {
@@ -58,11 +65,10 @@ impl FileParser {
             } else {
                 format!("{} syntax errors in file", error_count)
             };
-            
+
             return Err(WindWardenError::parse_error(
-                file_path, 
-                1, // Default to line 1 for now
-                message
+                file_path, 1, // Default to line 1 for now
+                message,
             ));
         }
 
@@ -72,9 +78,9 @@ impl FileParser {
             ClassExtractor::new(&wrapped_source)
         };
         extractor.visit_program(&program);
-        
+
         let mut matches = extractor.into_matches();
-        
+
         // Adjust spans back to original source if we wrapped it
         if offset > 0 {
             for class_match in &mut matches {
@@ -84,23 +90,28 @@ impl FileParser {
                 }
             }
         }
-        
+
         Ok(matches)
     }
 
     fn wrap_jsx_if_needed(&self, source_text: &str) -> (String, usize) {
         let trimmed = source_text.trim();
-        if trimmed.starts_with('<') && !trimmed.contains("function") && !trimmed.contains("const") && !trimmed.contains("export") {
+        if trimmed.starts_with('<')
+            && !trimmed.contains("function")
+            && !trimmed.contains("const")
+            && !trimmed.contains("export")
+        {
             // Make JSX element self-closing if it's not already closed
             let closed_source = if !trimmed.contains('>') {
                 format!("{} />", trimmed)
-            } else if trimmed.ends_with('>') && !trimmed.ends_with("/>") && !trimmed.contains("</") {
+            } else if trimmed.ends_with('>') && !trimmed.ends_with("/>") && !trimmed.contains("</")
+            {
                 // Convert to self-closing if it's an opening tag
                 trimmed.replace('>', " />")
             } else {
                 trimmed.to_string()
             };
-            
+
             let wrapped = format!("const Component = () => ({});", closed_source);
             let offset = wrapped.find(&closed_source).unwrap_or(0);
             (wrapped, offset)
@@ -112,7 +123,7 @@ impl FileParser {
     fn detect_source_type(&self, file_path: &str) -> SourceType {
         let path = Path::new(file_path);
         let extension = path.extension().and_then(|ext| ext.to_str()).unwrap_or("");
-        
+
         match extension {
             "ts" => SourceType::default().with_typescript(true),
             "tsx" => SourceType::default().with_typescript(true).with_jsx(true),

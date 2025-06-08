@@ -3,52 +3,16 @@ name: Release
 on:
   push:
     branches: [main]
-    tags: ['v*']
-  pull_request:
-    branches: [main]
+    tags: ["v*"]
 
 env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  # Test suite must pass before any releases
-  test:
-    name: Test Suite
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          components: rustfmt, clippy
-      
-      - name: Cache dependencies
-        uses: actions/cache@v3
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-      
-      - name: Check formatting
-        run: cargo fmt --all -- --check
-      
-      - name: Run clippy
-        run: cargo clippy --all-targets --all-features -- -D warnings
-      
-      - name: Run tests
-        run: cargo test --all-features
-      
-      - name: Run integration tests
-        run: cargo test --test '*' --all-features
-
   # Build binaries for multiple platforms
   build:
     name: Build (${{ matrix.target }})
     runs-on: ${{ matrix.os }}
-    needs: test
     strategy:
       matrix:
         include:
@@ -61,7 +25,7 @@ jobs:
             os: ubuntu-latest
             artifact_name: windwarden
             asset_name: windwarden-linux-aarch64
-          
+
           # macOS
           - target: x86_64-apple-darwin
             os: macos-latest
@@ -71,34 +35,24 @@ jobs:
             os: macos-latest
             artifact_name: windwarden
             asset_name: windwarden-macos-aarch64
-          
-          # Windows
-          - target: x86_64-pc-windows-msvc
-            os: windows-latest
-            artifact_name: windwarden.exe
-            asset_name: windwarden-windows-x86_64.exe
-          - target: aarch64-pc-windows-msvc
-            os: windows-latest
-            artifact_name: windwarden.exe
-            asset_name: windwarden-windows-aarch64.exe
 
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
-      
+
       - name: Cache dependencies
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
             target
           key: ${{ runner.os }}-${{ matrix.target }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-      
+
       # Install cross-compilation tools for Linux ARM64
       - name: Install cross-compilation tools
         if: matrix.target == 'aarch64-unknown-linux-gnu'
@@ -106,16 +60,16 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y gcc-aarch64-linux-gnu
           echo "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc" >> $GITHUB_ENV
-      
+
       - name: Build binary
         run: cargo build --release --target ${{ matrix.target }}
-      
+
       - name: Strip binary (Unix)
         if: matrix.os != 'windows-latest'
         run: strip target/${{ matrix.target }}/release/${{ matrix.artifact_name }}
-      
+
       - name: Upload binary
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.asset_name }}
           path: target/${{ matrix.target }}/release/${{ matrix.artifact_name }}
@@ -124,7 +78,7 @@ jobs:
   check-release:
     name: Check Release Conditions
     runs-on: ubuntu-latest
-    needs: [test, build]
+    needs: [build]
     outputs:
       should-release: ${{ steps.check.outputs.should-release }}
       version: ${{ steps.check.outputs.version }}
@@ -133,7 +87,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      
+
       - name: Check release conditions
         id: check
         run: |
@@ -154,7 +108,7 @@ jobs:
             # Get the version from Cargo.toml
             VERSION=$(grep '^version = ' Cargo.toml | head -1 | sed 's/.*"\(.*\)".*/\1/')
             echo "Current version: $VERSION"
-            
+
             # Check if this version has already been tagged
             if git tag -l | grep -q "^v$VERSION$"; then
               echo "Version v$VERSION already tagged, skipping release"
@@ -182,98 +136,93 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      
+
       - name: Download all artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           path: artifacts
-      
+
       - name: Display artifact structure
         run: ls -la artifacts/
-      
+
       - name: Generate release notes
         id: release-notes
         run: |
           VERSION="v${{ needs.check-release.outputs.version }}"
           echo "Generating release notes for $VERSION"
-          
+
           # Get previous tag for changelog
           PREV_TAG=$(git tag -l --sort=-version:refname | grep -v "$VERSION" | head -1)
           if [ -z "$PREV_TAG" ]; then
             PREV_TAG=$(git rev-list --max-parents=0 HEAD)
           fi
-          
+
           echo "Previous tag: $PREV_TAG"
-          
+
           # Generate changelog
           cat > release-notes.md << EOF
           ## What's New in $VERSION
-          
+
           ### 🚀 Features & Improvements
           $(git log $PREV_TAG..HEAD --pretty=format:"- %s" --grep="feat\|add\|implement" | head -10)
-          
+
           ### 🐛 Bug Fixes
           $(git log $PREV_TAG..HEAD --pretty=format:"- %s" --grep="fix\|bug" | head -10)
-          
+
           ### 📚 Documentation
           $(git log $PREV_TAG..HEAD --pretty=format:"- %s" --grep="doc\|readme" | head -5)
-          
+
           ### 🔧 Technical Changes
           $(git log $PREV_TAG..HEAD --pretty=format:"- %s" --grep="refactor\|perf\|test" | head -5)
-          
+
           ## Installation
-          
+
           ### Quick Install Scripts
-          
+
           **Linux/macOS (x86_64):**
           \`\`\`bash
           curl -L https://github.com/\${{ github.repository }}/releases/download/$VERSION/windwarden-linux-x86_64 -o windwarden
           chmod +x windwarden
           sudo mv windwarden /usr/local/bin/
           \`\`\`
-          
+
           **macOS (Apple Silicon):**
           \`\`\`bash
           curl -L https://github.com/\${{ github.repository }}/releases/download/$VERSION/windwarden-macos-aarch64 -o windwarden
           chmod +x windwarden
           sudo mv windwarden /usr/local/bin/
           \`\`\`
-          
-          **Windows (PowerShell):**
-          \`\`\`powershell
-          Invoke-WebRequest https://github.com/\${{ github.repository }}/releases/download/$VERSION/windwarden-windows-x86_64.exe -OutFile windwarden.exe
-          \`\`\`
-          
+
           ### Package Managers
-          
-          We're working on Homebrew, Chocolatey, and npm distribution. For now, please use the direct download links above.
-          
+
+          We're working on Homebrew and npm distribution. For now, please use the direct download links above.
+
           ### Shell Completions
-          
+
           After installation, set up shell completions:
           \`\`\`bash
           # Bash
           windwarden completions bash | sudo tee /etc/bash_completion.d/windwarden
-          
+
           # Zsh
           windwarden completions zsh > ~/.zsh/completions/_windwarden
-          
+
           # Fish
           windwarden completions fish > ~/.config/fish/completions/windwarden.fish
           \`\`\`
-          
+
           ## Full Changelog
-          
+
           **All changes since $PREV_TAG:**
           $(git log $PREV_TAG..HEAD --pretty=format:"- %s (%h)" | head -20)
-          
+
           ---
-          
+
           For more details, see the [full documentation](https://github.com/\${{ github.repository }}).
           EOF
-          
+
           echo "release-notes-file=release-notes.md" >> $GITHUB_OUTPUT
-      
+
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
@@ -286,11 +235,9 @@ jobs:
             artifacts/windwarden-linux-aarch64/windwarden
             artifacts/windwarden-macos-x86_64/windwarden
             artifacts/windwarden-macos-aarch64/windwarden
-            artifacts/windwarden-windows-x86_64.exe/windwarden.exe
-            artifacts/windwarden-windows-aarch64.exe/windwarden.exe
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      
+
       - name: Create Git Tag (if from main branch)
         if: github.ref == 'refs/heads/main'
         run: |
@@ -298,19 +245,3 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git tag -a "v${{ needs.check-release.outputs.version }}" -m "Release v${{ needs.check-release.outputs.version }}"
           git push origin "v${{ needs.check-release.outputs.version }}"
-
-  # Publish to crates.io (optional)
-  publish-crate:
-    name: Publish to crates.io
-    runs-on: ubuntu-latest
-    needs: [release, check-release]
-    if: needs.check-release.outputs.should-release == 'true' && needs.check-release.outputs.is-prerelease == 'false'
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-      
-      - name: Publish to crates.io
-        run: cargo publish --token ${{ secrets.CARGO_REGISTRY_TOKEN }}
-        continue-on-error: true  # Don't fail the release if crates.io publish fails

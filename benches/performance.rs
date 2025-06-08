@@ -2,13 +2,13 @@ use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criteri
 use std::fs;
 use std::path::Path;
 use tempfile::TempDir;
-use windwarden::{process_file, ProcessOptions};
 use windwarden::file_processor::{FileDiscoveryConfig, FileProcessingPipeline, ProcessingMode};
+use windwarden::{process_file, ProcessOptions};
 
 /// Create test files with various complexity levels
 fn create_test_files(temp_dir: &Path, count: usize, complexity: &str) -> Vec<String> {
     let mut files = Vec::new();
-    
+
     for i in 0..count {
         let content = match complexity {
             "simple" => format!(
@@ -17,7 +17,8 @@ export const Component{} = () => (
   <div className="p-4 bg-red-500 flex justify-center items-center">
     Simple component {}
   </div>
-);"#, i, i
+);"#,
+                i, i
             ),
             "medium" => format!(
                 r#"import React from 'react';
@@ -37,7 +38,8 @@ export const Component{} = ({{ isActive, size = 'md' }}) => (
       </button>
     </div>
   </div>
-);"#, i, i
+);"#,
+                i, i
             ),
             "complex" => format!(
                 r#"import React from 'react';
@@ -111,35 +113,36 @@ export const Component{} = ({{
       {{children}}
     </button>
   );
-}};"#, i
+}};"#,
+                i
             ),
-            _ => panic!("Unknown complexity level")
+            _ => panic!("Unknown complexity level"),
         };
-        
+
         let file_path = temp_dir.join(format!("component_{}.tsx", i));
         fs::write(&file_path, content).expect("Failed to write test file");
         files.push(file_path.display().to_string());
     }
-    
+
     files
 }
 
 /// Benchmark single file processing
 fn bench_single_file_processing(c: &mut Criterion) {
     let temp_dir = TempDir::new().expect("Failed to create temp directory");
-    
+
     let mut group = c.benchmark_group("single_file_processing");
-    
+
     for complexity in ["simple", "medium", "complex"] {
         let files = create_test_files(temp_dir.path(), 1, complexity);
         let file_path = &files[0];
-        
+
         let options = ProcessOptions {
             dry_run: true,
             write: false,
             check_formatted: false,
         };
-        
+
         group.bench_with_input(
             BenchmarkId::new("complexity", complexity),
             file_path,
@@ -151,21 +154,21 @@ fn bench_single_file_processing(c: &mut Criterion) {
             },
         );
     }
-    
+
     group.finish();
 }
 
 /// Benchmark batch file processing
 fn bench_batch_processing(c: &mut Criterion) {
     let temp_dir = TempDir::new().expect("Failed to create temp directory");
-    
+
     let mut group = c.benchmark_group("batch_processing");
-    
+
     for &file_count in &[10, 50, 100, 200] {
         let files = create_test_files(temp_dir.path(), file_count, "medium");
-        
+
         group.throughput(Throughput::Elements(file_count as u64));
-        
+
         // Sequential processing
         group.bench_with_input(
             BenchmarkId::new("sequential", file_count),
@@ -173,21 +176,24 @@ fn bench_batch_processing(c: &mut Criterion) {
             |b, _files| {
                 b.iter(|| {
                     let config = FileDiscoveryConfig::default();
-                    let pipeline = FileProcessingPipeline::sequential(config).expect("Failed to create pipeline");
+                    let pipeline = FileProcessingPipeline::sequential(config)
+                        .expect("Failed to create pipeline");
                     let options = ProcessOptions {
                         dry_run: true,
                         write: false,
                         check_formatted: false,
                     };
-                    
-                    pipeline.process_files(
-                        black_box(&[temp_dir.path().display().to_string()]),
-                        black_box(options)
-                    ).expect("Failed to process files")
+
+                    pipeline
+                        .process_files(
+                            black_box(&[temp_dir.path().display().to_string()]),
+                            black_box(options),
+                        )
+                        .expect("Failed to process files")
                 })
             },
         );
-        
+
         // Parallel processing
         group.bench_with_input(
             BenchmarkId::new("parallel", file_count),
@@ -195,22 +201,25 @@ fn bench_batch_processing(c: &mut Criterion) {
             |b, _files| {
                 b.iter(|| {
                     let config = FileDiscoveryConfig::default();
-                    let pipeline = FileProcessingPipeline::parallel(config).expect("Failed to create pipeline");
+                    let pipeline = FileProcessingPipeline::parallel(config)
+                        .expect("Failed to create pipeline");
                     let options = ProcessOptions {
                         dry_run: true,
                         write: false,
                         check_formatted: false,
                     };
-                    
-                    pipeline.process_files(
-                        black_box(&[temp_dir.path().display().to_string()]),
-                        black_box(options)
-                    ).expect("Failed to process files")
+
+                    pipeline
+                        .process_files(
+                            black_box(&[temp_dir.path().display().to_string()]),
+                            black_box(options),
+                        )
+                        .expect("Failed to process files")
                 })
             },
         );
     }
-    
+
     group.finish();
 }
 
@@ -218,9 +227,9 @@ fn bench_batch_processing(c: &mut Criterion) {
 fn bench_thread_scaling(c: &mut Criterion) {
     let temp_dir = TempDir::new().expect("Failed to create temp directory");
     let _files = create_test_files(temp_dir.path(), 100, "medium");
-    
+
     let mut group = c.benchmark_group("thread_scaling");
-    
+
     for &thread_count in &[1, 2, 4, 8, 16] {
         group.bench_with_input(
             BenchmarkId::new("threads", thread_count),
@@ -236,67 +245,74 @@ fn bench_thread_scaling(c: &mut Criterion) {
                         write: false,
                         check_formatted: false,
                     };
-                    
-                    pipeline.process_files(
-                        black_box(&[temp_dir.path().display().to_string()]),
-                        black_box(options)
-                    ).expect("Failed to process files")
+
+                    pipeline
+                        .process_files(
+                            black_box(&[temp_dir.path().display().to_string()]),
+                            black_box(options),
+                        )
+                        .expect("Failed to process files")
                 })
             },
         );
     }
-    
+
     group.finish();
 }
 
 /// Benchmark file discovery performance
 fn bench_file_discovery(c: &mut Criterion) {
     let temp_dir = TempDir::new().expect("Failed to create temp directory");
-    
+
     let mut group = c.benchmark_group("file_discovery");
-    
+
     // Create nested directory structure
     for depth in 1..=5 {
         let mut current_path = temp_dir.path().to_path_buf();
         for i in 0..depth {
             current_path.push(format!("level_{}", i));
             fs::create_dir_all(&current_path).expect("Failed to create directory");
-            
+
             // Add files at each level
             for j in 0..5 {
                 let file_path = current_path.join(format!("file_{}_{}.tsx", i, j));
-                fs::write(&file_path, "export const Test = () => <div className=\"p-4 m-2\">Test</div>;")
-                    .expect("Failed to write file");
+                fs::write(
+                    &file_path,
+                    "export const Test = () => <div className=\"p-4 m-2\">Test</div>;",
+                )
+                .expect("Failed to write file");
             }
         }
     }
-    
+
     group.bench_function("directory_traversal", |b| {
         b.iter(|| {
             let config = FileDiscoveryConfig::default();
-            let pipeline = FileProcessingPipeline::sequential(config).expect("Failed to create pipeline");
-            
+            let pipeline =
+                FileProcessingPipeline::sequential(config).expect("Failed to create pipeline");
+
             // Just do file discovery, not processing
             let discovery = pipeline.discovery_config();
             let file_discovery = windwarden::file_processor::FileDiscovery::new(discovery.clone())
                 .expect("Failed to create file discovery");
-            
-            file_discovery.discover_files(black_box(&[temp_dir.path().display().to_string()]))
+
+            file_discovery
+                .discover_files(black_box(&[temp_dir.path().display().to_string()]))
                 .expect("Failed to discover files")
         })
     });
-    
+
     group.finish();
 }
 
 /// Benchmark memory usage patterns
 fn bench_memory_patterns(c: &mut Criterion) {
     let temp_dir = TempDir::new().expect("Failed to create temp directory");
-    
+
     let mut group = c.benchmark_group("memory_patterns");
-    
+
     // Test with one very large file vs many small files
-    
+
     // One large file
     let large_content = (0..1000)
         .map(|i| format!(
@@ -305,19 +321,20 @@ fn bench_memory_patterns(c: &mut Criterion) {
         ))
         .collect::<Vec<_>>()
         .join("\n");
-    
+
     let large_file_content = format!(
         r#"import React from 'react';
 export const LargeComponent = () => (
   <div>
 {}
   </div>
-);"#, large_content
+);"#,
+        large_content
     );
-    
+
     let large_file_path = temp_dir.path().join("large_file.tsx");
     fs::write(&large_file_path, large_file_content).expect("Failed to write large file");
-    
+
     group.bench_function("large_single_file", |b| {
         b.iter(|| {
             let options = ProcessOptions {
@@ -325,43 +342,56 @@ export const LargeComponent = () => (
                 write: false,
                 check_formatted: false,
             };
-            process_file(black_box(&large_file_path.display().to_string()), black_box(options))
-                .expect("Failed to process large file")
+            process_file(
+                black_box(&large_file_path.display().to_string()),
+                black_box(options),
+            )
+            .expect("Failed to process large file")
         })
     });
-    
+
     // Many small files
-    let _small_files = create_test_files(temp_dir.path().join("small_files").as_path(), 200, "simple");
-    fs::create_dir_all(temp_dir.path().join("small_files")).expect("Failed to create small files dir");
-    
+    let _small_files =
+        create_test_files(temp_dir.path().join("small_files").as_path(), 200, "simple");
+    fs::create_dir_all(temp_dir.path().join("small_files"))
+        .expect("Failed to create small files dir");
+
     for i in 0..200 {
         let content = format!(
             r#"import React from 'react';
-export const Small{} = () => <div className="p-4 bg-red-500 flex">Small {}</div>;"#, i, i
+export const Small{} = () => <div className="p-4 bg-red-500 flex">Small {}</div>;"#,
+            i, i
         );
         fs::write(
-            temp_dir.path().join("small_files").join(format!("small_{}.tsx", i)),
+            temp_dir
+                .path()
+                .join("small_files")
+                .join(format!("small_{}.tsx", i)),
             content,
-        ).expect("Failed to write small file");
+        )
+        .expect("Failed to write small file");
     }
-    
+
     group.bench_function("many_small_files", |b| {
         b.iter(|| {
             let config = FileDiscoveryConfig::default();
-            let pipeline = FileProcessingPipeline::parallel(config).expect("Failed to create pipeline");
+            let pipeline =
+                FileProcessingPipeline::parallel(config).expect("Failed to create pipeline");
             let options = ProcessOptions {
                 dry_run: true,
                 write: false,
                 check_formatted: false,
             };
-            
-            pipeline.process_files(
-                black_box(&[temp_dir.path().join("small_files").display().to_string()]),
-                black_box(options)
-            ).expect("Failed to process small files")
+
+            pipeline
+                .process_files(
+                    black_box(&[temp_dir.path().join("small_files").display().to_string()]),
+                    black_box(options),
+                )
+                .expect("Failed to process small files")
         })
     });
-    
+
     group.finish();
 }
 

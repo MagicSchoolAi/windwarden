@@ -1,10 +1,10 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use windwarden::sorter::TailwindSorter;
 use windwarden::optimizations::{sort_classes_optimized, FastPathOptimizer};
+use windwarden::sorter::TailwindSorter;
 
 fn bench_sorter_comparison(c: &mut Criterion) {
     let mut group = c.benchmark_group("sorter_optimization");
-    
+
     let test_classes = vec![
         "p-4 bg-red-500 flex justify-center items-center m-2 text-white",
         "w-full h-screen bg-gray-100 flex items-center justify-center p-8",
@@ -12,7 +12,7 @@ fn bench_sorter_comparison(c: &mut Criterion) {
         "px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50",
         "inline-flex items-center justify-center font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none ring-offset-background",
     ];
-    
+
     // Original sorter
     group.bench_function("original", |b| {
         let sorter = TailwindSorter::new();
@@ -22,7 +22,7 @@ fn bench_sorter_comparison(c: &mut Criterion) {
             }
         })
     });
-    
+
     // Optimized sorter
     group.bench_function("optimized", |b| {
         b.iter(|| {
@@ -31,13 +31,13 @@ fn bench_sorter_comparison(c: &mut Criterion) {
             }
         })
     });
-    
+
     group.finish();
 }
 
 fn bench_fast_path_optimization(c: &mut Criterion) {
     let mut group = c.benchmark_group("fast_path");
-    
+
     let test_files = vec![
         // File that needs processing
         r#"import React from 'react';
@@ -61,7 +61,7 @@ export const Component = () => (
   </div>
 );"#,
     ];
-    
+
     group.bench_function("fast_path_check", |b| {
         b.iter(|| {
             for content in &test_files {
@@ -69,9 +69,13 @@ export const Component = () => (
             }
         })
     });
-    
+
     group.finish();
 }
 
-criterion_group!(benches, bench_sorter_comparison, bench_fast_path_optimization);
+criterion_group!(
+    benches,
+    bench_sorter_comparison,
+    bench_fast_path_optimization
+);
 criterion_main!(benches);

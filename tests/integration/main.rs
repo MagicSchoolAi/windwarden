@@ -5,7 +5,7 @@
 //
 // Individual test categories can be run with:
 // - cargo test --test integration cli_tests
-// - cargo test --test integration error_handling_tests  
+// - cargo test --test integration error_handling_tests
 // - cargo test --test integration file_processing_tests
 // - cargo test --test integration performance_tests
 
@@ -17,12 +17,12 @@ mod performance_tests;
 #[cfg(test)]
 mod test_runner {
     use std::env;
-    
+
     #[test]
     fn run_integration_tests() {
         // This test serves as documentation and a way to run all integration tests
         // The actual tests are in the individual modules above
-        
+
         println!("Running WindWarden Integration Tests");
         println!("====================================");
         println!();
@@ -32,12 +32,9 @@ mod test_runner {
         println!("- File Processing Tests: Core file processing workflows");
         println!("- Performance Tests: Performance and scalability validation");
         println!();
-        
+
         if env::var("RUST_LOG").is_err() {
             println!("Tip: Set RUST_LOG=debug for verbose output");
         }
-        
-        // This test always passes - it's just for organization
-        assert!(true);
     }
 }
