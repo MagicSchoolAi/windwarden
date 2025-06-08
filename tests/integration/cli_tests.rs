@@ -43,7 +43,9 @@ fn test_check_command_help() {
         .arg("--help")
         .assert()
         .success()
-        .stdout(predicate::str::contains("Check if files are properly formatted"))
+        .stdout(predicate::str::contains(
+            "Check if files are properly formatted",
+        ))
         .stdout(predicate::str::contains("--processing"))
         .stdout(predicate::str::contains("--stats"));
 }
