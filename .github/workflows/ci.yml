@@ -21,7 +21,7 @@ jobs:
           components: rustfmt, clippy
 
       - name: Cache dependencies
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             ~/.cargo/registry
@@ -66,7 +66,7 @@ jobs:
           toolchain: ${{ matrix.rust }}
 
       - name: Cache dependencies
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             ~/.cargo/registry
@@ -126,7 +126,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
 
       - name: Cache dependencies
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             ~/.cargo/registry
@@ -156,7 +156,7 @@ jobs:
           components: llvm-tools-preview
 
       - name: Cache dependencies
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             ~/.cargo/registry
@@ -171,7 +171,7 @@ jobs:
         run: cargo llvm-cov --all-features --workspace --lcov --output-path lcov.info
 
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v5
         with:
           file: lcov.info
           fail_ci_if_error: false
@@ -187,7 +187,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
 
       - name: Cache dependencies
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             ~/.cargo/registry
@@ -210,7 +210,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Run security audit
-        uses: actions-rs/audit-check@v1
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Run security audit  
+        run: |
+          cargo install cargo-audit
+          cargo audit
