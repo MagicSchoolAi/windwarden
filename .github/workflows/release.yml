@@ -193,14 +193,9 @@ jobs:
           sudo mv windwarden /usr/local/bin/
           \`\`\`
 
-          **Windows (PowerShell):**
-          \`\`\`powershell
-          Invoke-WebRequest https://github.com/\${{ github.repository }}/releases/download/$VERSION/windwarden-windows-x86_64.exe -OutFile windwarden.exe
-          \`\`\`
-
           ### Package Managers
 
-          We're working on Homebrew, Chocolatey, and npm distribution. For now, please use the direct download links above.
+          We're working on Homebrew and npm distribution. For now, please use the direct download links above.
 
           ### Shell Completions
 
