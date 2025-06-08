@@ -177,7 +177,7 @@ impl<'a> ClassExtractor<'a> {
                 .iter()
                 .filter(|token| self.matches_tailwind_pattern(token))
                 .count();
-            
+
             // For short strings (2-4 tokens), require at least 2 Tailwind tokens
             // For longer strings, require at least 50% to be Tailwind tokens
             if tokens.len() <= 4 {
@@ -955,11 +955,11 @@ mod tests {
         for test_case in test_cases {
             let source = format!("const test = '{}';", test_case);
             let matches = parse_and_extract(&source);
-            
+
             assert_eq!(
-                matches.len(), 
-                0, 
-                "Regular text '{}' should not be processed as Tailwind classes", 
+                matches.len(),
+                0,
+                "Regular text '{}' should not be processed as Tailwind classes",
                 test_case
             );
         }
@@ -978,11 +978,11 @@ mod tests {
         for (test_case, expected_matches) in test_cases {
             let source = format!("const test = '{}';", test_case);
             let matches = parse_and_extract(&source);
-            
+
             assert_eq!(
-                matches.len(), 
-                expected_matches, 
-                "Legitimate Tailwind classes '{}' should be processed", 
+                matches.len(),
+                expected_matches,
+                "Legitimate Tailwind classes '{}' should be processed",
                 test_case
             );
         }
