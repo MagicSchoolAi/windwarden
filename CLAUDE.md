@@ -14,9 +14,15 @@ The project uses Nix for environment management. To set up the development envir
 nix-shell
 ```
 
+or use direnv:
+
+```bash
+direnv allow
+```
+
 This provides the necessary Rust toolchain and dependencies including:
 - cargo (build tool)
-- rustc (compiler)  
+- rustc (compiler)
 - rust-analyzer (LSP)
 - rustfmt (formatter)
 - clang and pkg-config (for native dependencies)
