@@ -511,58 +511,85 @@ mod tests {
 
     #[test]
     fn test_function_name_validation() {
-        let mut config = Config::default();
-
         // Test empty function name
-        config.function_names = vec!["".to_string()];
+        let config = Config {
+            function_names: vec!["".to_string()],
+            ..Default::default()
+        };
         assert!(ConfigManager::validate_config(&config).is_err());
 
         // Test function name with whitespace
-        config.function_names = vec!["my func".to_string()];
+        let config = Config {
+            function_names: vec!["my func".to_string()],
+            ..Default::default()
+        };
         assert!(ConfigManager::validate_config(&config).is_err());
 
         // Test valid function name
-        config.function_names = vec!["myFunc".to_string(), "anotherFunc".to_string()];
+        let config = Config {
+            function_names: vec!["myFunc".to_string(), "anotherFunc".to_string()],
+            ..Default::default()
+        };
         assert!(ConfigManager::validate_config(&config).is_ok());
     }
 
     #[test]
     fn test_thread_count_validation() {
-        let mut config = Config::default();
-
         // Test excessive thread count
-        config.threads = 2000;
+        let config = Config {
+            threads: 2000,
+            ..Default::default()
+        };
         assert!(ConfigManager::validate_config(&config).is_err());
 
         // Test reasonable thread count
-        config.threads = 16;
+        let config = Config {
+            threads: 16,
+            ..Default::default()
+        };
         assert!(ConfigManager::validate_config(&config).is_ok());
 
         // Test zero (auto-detect)
-        config.threads = 0;
+        let config = Config {
+            threads: 0,
+            ..Default::default()
+        };
         assert!(ConfigManager::validate_config(&config).is_ok());
     }
 
     #[test]
     fn test_default_mode_validation() {
-        let mut config = Config::default();
-
         // Test invalid mode
-        config.default_mode = Some("invalid".to_string());
+        let config = Config {
+            default_mode: Some("invalid".to_string()),
+            ..Default::default()
+        };
         assert!(ConfigManager::validate_config(&config).is_err());
 
         // Test valid modes
-        config.default_mode = Some("format".to_string());
+        let config = Config {
+            default_mode: Some("format".to_string()),
+            ..Default::default()
+        };
         assert!(ConfigManager::validate_config(&config).is_ok());
 
-        config.default_mode = Some("check".to_string());
+        let config = Config {
+            default_mode: Some("check".to_string()),
+            ..Default::default()
+        };
         assert!(ConfigManager::validate_config(&config).is_ok());
 
-        config.default_mode = Some("diff".to_string());
+        let config = Config {
+            default_mode: Some("diff".to_string()),
+            ..Default::default()
+        };
         assert!(ConfigManager::validate_config(&config).is_ok());
 
         // Test None (no default)
-        config.default_mode = None;
+        let config = Config {
+            default_mode: None,
+            ..Default::default()
+        };
         assert!(ConfigManager::validate_config(&config).is_ok());
     }
 

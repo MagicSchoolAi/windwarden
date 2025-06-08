@@ -12,6 +12,12 @@ pub struct PerformanceMetrics {
     pub class_count: usize,
 }
 
+impl Default for PerformanceMetrics {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl PerformanceMetrics {
     pub fn new() -> Self {
         Self {
@@ -46,6 +52,12 @@ pub struct PerformanceProfiler {
     start_time: Instant,
     timings: HashMap<String, Duration>,
     current_operation: Option<(String, Instant)>,
+}
+
+impl Default for PerformanceProfiler {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl PerformanceProfiler {
@@ -115,6 +127,12 @@ pub struct MemoryMetrics {
     pub allocations: usize,
     pub deallocations: usize,
     pub current_memory: usize,
+}
+
+impl Default for MemoryMetrics {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl MemoryMetrics {

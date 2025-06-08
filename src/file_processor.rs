@@ -108,9 +108,7 @@ impl FileDiscovery {
             .filter_entry(|e| !self.is_excluded(e.path()));
 
         for entry in walkdir {
-            let entry = entry.map_err(|e| {
-                WindWardenError::Io(std::io::Error::new(std::io::ErrorKind::Other, e))
-            })?;
+            let entry = entry.map_err(|e| WindWardenError::Io(std::io::Error::other(e)))?;
 
             if entry.file_type().is_file() && self.should_process_file(entry.path()) {
                 files.push(entry.path().to_path_buf());
@@ -138,9 +136,7 @@ impl FileDiscovery {
             .filter_entry(|e| !self.is_excluded(e.path()));
 
         for entry in walkdir {
-            let entry = entry.map_err(|e| {
-                WindWardenError::Io(std::io::Error::new(std::io::ErrorKind::Other, e))
-            })?;
+            let entry = entry.map_err(|e| WindWardenError::Io(std::io::Error::other(e)))?;
 
             let path = entry.path();
 
