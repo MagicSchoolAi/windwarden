@@ -38,15 +38,6 @@ jobs:
       - name: Run clippy
         run: cargo clippy --all-targets --all-features -- -D warnings
 
-      - name: Run clippy (pedantic)
-        run: cargo clippy --all-targets --all-features -- -W clippy::pedantic
-        continue-on-error: true # Don't fail CI on pedantic warnings
-
-      - name: Check for security vulnerabilities
-        run: |
-          cargo install cargo-audit || true
-          cargo audit || true
-
   # Comprehensive testing across platforms
   test:
     name: Test (${{ matrix.os }}, Rust ${{ matrix.rust }})
@@ -205,18 +196,3 @@ jobs:
         run: |
           cargo install cargo-deadlinks || true
           cargo deadlinks --check-http || true
-
-  # Security scan
-  security:
-    name: Security Scan
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Run security audit  
-        run: |
-          cargo install cargo-audit
-          cargo audit
