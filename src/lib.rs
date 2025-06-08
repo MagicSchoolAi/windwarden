@@ -19,9 +19,7 @@ use crate::config::Config;
 use crate::file_processor::{
     BatchProcessingResults, FileDiscoveryConfig, FileProcessingPipeline, ProcessingMode,
 };
-use crate::parser::ClassExtractor;
 use crate::processor::FileProcessor;
-use crate::sorter::TailwindSorter;
 use std::io::{self, Read};
 use thiserror::Error;
 
@@ -205,10 +203,7 @@ impl WindWardenError {
             Self::InvalidUtf8 { path } => {
                 format!("❌ Invalid UTF-8 encoding in file: {}\n\n💡 Suggestions:\n   • Check file encoding and convert to UTF-8\n   • Use a text editor to fix encoding issues\n   • Skip this file with --exclude pattern", path)
             }
-            _ => format!(
-                "❌ Error: {}\n\n💡 For help, run: windwarden --help",
-                self.to_string()
-            ),
+            _ => format!("❌ Error: {}\n\n💡 For help, run: windwarden --help", self),
         }
     }
 
@@ -243,21 +238,11 @@ impl WindWardenError {
 
 pub type Result<T> = std::result::Result<T, WindWardenError>;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct ProcessOptions {
     pub dry_run: bool,
     pub write: bool,
     pub check_formatted: bool,
-}
-
-impl Default for ProcessOptions {
-    fn default() -> Self {
-        Self {
-            dry_run: false,
-            write: false,
-            check_formatted: false,
-        }
-    }
 }
 
 pub fn process_file(file_path: &str, options: ProcessOptions) -> Result<String> {

@@ -150,6 +150,7 @@ impl MemoryMetrics {
 }
 
 #[cfg(feature = "performance-profiling")]
+#[macro_export]
 macro_rules! profile_operation {
     ($profiler:expr, $operation:expr, $code:block) => {
         $profiler.start_operation($operation);
@@ -160,10 +161,9 @@ macro_rules! profile_operation {
 }
 
 #[cfg(not(feature = "performance-profiling"))]
+#[macro_export]
 macro_rules! profile_operation {
     ($profiler:expr, $operation:expr, $code:block) => {
         $code
     };
 }
-
-pub use profile_operation;

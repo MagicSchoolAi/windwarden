@@ -1,13 +1,25 @@
 use clap::{CommandFactory, Parser};
 use std::io;
-use std::path::PathBuf;
 use std::process;
 use std::time::Instant;
 use windwarden::cli::{Cli, Commands, ConfigAction, OperationMode, ProcessingMode, Shell};
-use windwarden::config::{Config, ConfigManager};
+use windwarden::config::ConfigManager;
 use windwarden::file_processor::{FileDiscovery, FileDiscoveryConfig, FileProcessingPipeline};
 use windwarden::output::{OutputFormatter, ProgressReporter, ProgressTracker};
 use windwarden::{process_file, process_stdin, ProcessOptions, WindWardenError};
+
+#[derive(Debug, Clone)]
+struct CommandOptions {
+    processing_mode: ProcessingMode,
+    threads: Option<usize>,
+    extensions: Option<Vec<String>>,
+    exclude: Option<Vec<String>>,
+    max_depth: Option<usize>,
+    follow_links: bool,
+    show_stats: bool,
+    show_progress: bool,
+    show_diff: bool,
+}
 
 fn main() {
     let cli = Cli::parse();
@@ -59,20 +71,20 @@ fn main() {
             stats,
             progress,
             diff,
-        }) => handle_format_command(
-            &config_manager,
-            paths,
-            *mode,
-            *processing,
-            *threads,
-            extensions,
-            exclude,
-            *max_depth,
-            *follow_links,
-            *stats,
-            *progress,
-            *diff,
-        ),
+        }) => {
+            let options = CommandOptions {
+                processing_mode: *processing,
+                threads: *threads,
+                extensions: extensions.clone(),
+                exclude: exclude.clone(),
+                max_depth: *max_depth,
+                follow_links: *follow_links,
+                show_stats: *stats,
+                show_progress: *progress,
+                show_diff: *diff,
+            };
+            handle_format_command(&config_manager, paths, *mode, &options)
+        }
 
         Some(Commands::Check {
             paths,
@@ -83,17 +95,20 @@ fn main() {
             stats,
             progress,
             diff,
-        }) => handle_check_command(
-            &config_manager,
-            paths,
-            *processing,
-            *threads,
-            extensions,
-            exclude,
-            *stats,
-            *progress,
-            *diff,
-        ),
+        }) => {
+            let options = CommandOptions {
+                processing_mode: *processing,
+                threads: *threads,
+                extensions: extensions.clone(),
+                exclude: exclude.clone(),
+                max_depth: None,
+                follow_links: false,
+                show_stats: *stats,
+                show_progress: *progress,
+                show_diff: *diff,
+            };
+            handle_check_command(&config_manager, paths, &options)
+        }
 
         Some(Commands::Config { action }) => handle_config_command(action, &config_manager),
 
@@ -145,34 +160,26 @@ fn handle_format_command(
     config_manager: &ConfigManager,
     paths: &[String],
     mode: OperationMode,
-    processing_mode: ProcessingMode,
-    threads: Option<usize>,
-    extensions: &Option<Vec<String>>,
-    exclude: &Option<Vec<String>>,
-    max_depth: Option<usize>,
-    follow_links: bool,
-    show_stats: bool,
-    show_progress: bool,
-    show_diff: bool,
+    options: &CommandOptions,
 ) -> Result<i32, Box<dyn std::error::Error>> {
     let start_time = Instant::now();
 
     // Build file discovery config
     let mut config = FileDiscoveryConfig::default();
 
-    if let Some(exts) = extensions {
+    if let Some(exts) = &options.extensions {
         config.extensions = exts.clone();
     }
 
-    if let Some(patterns) = exclude {
+    if let Some(patterns) = &options.exclude {
         config.exclude_patterns.extend(patterns.clone());
     }
 
-    config.max_depth = max_depth;
-    config.follow_links = follow_links;
+    config.max_depth = options.max_depth;
+    config.follow_links = options.follow_links;
 
     // Create processing pipeline
-    let pipeline_mode = match (processing_mode, threads) {
+    let pipeline_mode = match (options.processing_mode, options.threads) {
         (_, Some(n)) => windwarden::file_processor::ProcessingMode::ParallelWithThreads(n),
         (ProcessingMode::Sequential, None) => {
             windwarden::file_processor::ProcessingMode::Sequential
@@ -193,7 +200,7 @@ fn handle_format_command(
         )));
     }
 
-    if let Some(thread_count) = threads {
+    if let Some(thread_count) = options.threads {
         if thread_count == 0 {
             return Err(Box::new(WindWardenError::config_error(
                 "Thread count must be greater than 0",
@@ -226,7 +233,7 @@ fn handle_format_command(
     };
 
     // Set up progress reporting if requested
-    let (results, duration) = if show_progress {
+    let (results, duration) = if options.show_progress {
         // First discover files to get count for progress reporting
         let discovered_files = {
             let temp_discovery = FileDiscovery::new(config.clone())?;
@@ -263,7 +270,7 @@ fn handle_format_command(
     };
 
     // Format and display results
-    let formatter = OutputFormatter::new(show_stats).with_diff(show_diff);
+    let formatter = OutputFormatter::new(options.show_stats).with_diff(options.show_diff);
     let output = match mode {
         OperationMode::Check => formatter.format_check_results(&results, Some(duration)),
         OperationMode::Write => formatter.format_write_results(&results, Some(duration)),
@@ -278,29 +285,16 @@ fn handle_format_command(
 fn handle_check_command(
     config_manager: &ConfigManager,
     paths: &[String],
-    processing_mode: ProcessingMode,
-    threads: Option<usize>,
-    extensions: &Option<Vec<String>>,
-    exclude: &Option<Vec<String>>,
-    show_stats: bool,
-    show_progress: bool,
-    show_diff: bool,
+    options: &CommandOptions,
 ) -> Result<i32, Box<dyn std::error::Error>> {
     // Check command is equivalent to format with verify mode
-    handle_format_command(
-        config_manager,
-        paths,
-        OperationMode::Verify,
-        processing_mode,
-        threads,
-        extensions,
-        exclude,
-        None,  // max_depth
-        false, // follow_links
-        show_stats,
-        show_progress,
-        show_diff,
-    )
+    let check_options = CommandOptions {
+        max_depth: None,     // max_depth not used in check
+        follow_links: false, // follow_links not used in check
+        ..options.clone()
+    };
+
+    handle_format_command(config_manager, paths, OperationMode::Verify, &check_options)
 }
 
 fn load_configuration(cli: &Cli) -> Result<ConfigManager, WindWardenError> {

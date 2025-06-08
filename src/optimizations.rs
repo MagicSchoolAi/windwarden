@@ -4,7 +4,6 @@
 /// to improve performance for large-scale processing.
 use crate::sorter::TailwindSorter;
 
-/// Thread-local sorter to avoid repeated allocations and initialization
 thread_local! {
     static LOCAL_SORTER: TailwindSorter = TailwindSorter::new();
 }
@@ -17,6 +16,12 @@ pub fn sort_classes_optimized(class_string: &str) -> String {
 /// String pool for reducing allocations in commonly used strings
 pub struct StringPool {
     common_classes: std::collections::HashMap<&'static str, &'static str>,
+}
+
+impl Default for StringPool {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl StringPool {
@@ -101,7 +106,12 @@ pub fn intern_class(class: &str) -> &str {
 /// Optimized batch processing for large numbers of files
 pub struct BatchOptimizer {
     thread_count: usize,
-    chunk_size: usize,
+}
+
+impl Default for BatchOptimizer {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl BatchOptimizer {
@@ -110,13 +120,7 @@ impl BatchOptimizer {
             .map(|n| n.get())
             .unwrap_or(4);
 
-        // Optimal chunk size based on thread count and typical file sizes
-        let chunk_size = std::cmp::max(1, 100 / thread_count);
-
-        Self {
-            thread_count,
-            chunk_size,
-        }
+        Self { thread_count }
     }
 
     pub fn get_optimal_thread_count(&self) -> usize {
@@ -184,6 +188,12 @@ impl FastPathOptimizer {
 pub struct MemoryOptimizer {
     max_file_size: usize,
     string_deduplication: bool,
+}
+
+impl Default for MemoryOptimizer {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl MemoryOptimizer {

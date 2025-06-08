@@ -1,5 +1,4 @@
 use colored::Colorize;
-use std::fmt;
 
 /// A single change in a diff
 #[derive(Debug, Clone, PartialEq)]
@@ -88,7 +87,6 @@ pub struct DiffSummary {
 
 /// Format a file diff for display
 pub struct DiffFormatter {
-    show_context: bool,
     context_lines: usize,
     use_colors: bool,
 }
@@ -96,7 +94,6 @@ pub struct DiffFormatter {
 impl DiffFormatter {
     pub fn new() -> Self {
         Self {
-            show_context: true,
             context_lines: 3,
             use_colors: true,
         }

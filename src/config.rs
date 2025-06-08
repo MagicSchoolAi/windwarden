@@ -197,6 +197,12 @@ pub struct ConfigManager {
     config_path: Option<PathBuf>,
 }
 
+impl Default for ConfigManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ConfigManager {
     /// Create a new ConfigManager with default configuration
     pub fn new() -> Self {

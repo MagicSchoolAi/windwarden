@@ -126,7 +126,7 @@ fn generate_random_suffix() -> u64 {
 }
 
 /// Atomic file operations helper functions
-pub mod atomic {
+pub mod operations {
     use super::*;
 
     /// Atomically write content to a file
@@ -231,7 +231,7 @@ mod tests {
         let temp_dir = TempDir::new().unwrap();
         let file_path = temp_dir.path().join("test.txt");
 
-        atomic::write_file(&file_path, "Test content").unwrap();
+        operations::write_file(&file_path, "Test content").unwrap();
 
         let content = fs::read_to_string(&file_path).unwrap();
         assert_eq!(content, "Test content");
@@ -246,7 +246,7 @@ mod tests {
         fs::write(&file_path, "Original content").unwrap();
 
         // Write new content with backup
-        atomic::write_file_with_backup(&file_path, "New content").unwrap();
+        operations::write_file_with_backup(&file_path, "New content").unwrap();
 
         // Check new content
         let content = fs::read_to_string(&file_path).unwrap();
@@ -264,7 +264,7 @@ mod tests {
         let temp_dir = TempDir::new().unwrap();
         let nested_path = temp_dir.path().join("nested").join("dirs").join("test.txt");
 
-        atomic::write_file(&nested_path, "Test content").unwrap();
+        operations::write_file(&nested_path, "Test content").unwrap();
 
         let content = fs::read_to_string(&nested_path).unwrap();
         assert_eq!(content, "Test content");

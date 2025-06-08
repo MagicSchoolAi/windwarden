@@ -185,8 +185,8 @@ impl FileDiscovery {
         }
 
         // Also check the full path against patterns
-        let is_excluded = self.exclude_set.is_match(path);
-        is_excluded
+
+        self.exclude_set.is_match(path)
     }
 
     /// Build the exclude glob set from patterns
@@ -258,6 +258,12 @@ pub struct BatchProcessingResults {
     pub results: Vec<FileProcessingResult>,
 }
 
+impl Default for BatchProcessingResults {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl BatchProcessingResults {
     pub fn new() -> Self {
         Self {
@@ -294,20 +300,15 @@ impl BatchProcessingResults {
 }
 
 /// Processing mode configuration
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Default)]
 pub enum ProcessingMode {
     /// Process files sequentially (single-threaded)
     Sequential,
     /// Process files in parallel using all available CPU cores
+    #[default]
     Parallel,
     /// Process files in parallel with a specific number of threads
     ParallelWithThreads(usize),
-}
-
-impl Default for ProcessingMode {
-    fn default() -> Self {
-        ProcessingMode::Parallel
-    }
 }
 
 /// File processing pipeline with support for both sequential and parallel processing

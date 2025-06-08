@@ -43,7 +43,7 @@ impl FileProcessor {
     }
 
     pub fn process_file(&self, file_path: &str, options: ProcessOptions) -> Result<String> {
-        let content = fs::read_to_string(file_path).map_err(|e| WindWardenError::Io(e))?;
+        let content = fs::read_to_string(file_path).map_err(WindWardenError::Io)?;
 
         self.process_content(&content, file_path, options)
     }
@@ -150,7 +150,7 @@ impl FileProcessor {
                     }
                     PatternType::BinaryExpression {
                         left_content,
-                        right_content,
+                        right_content: _,
                     } => {
                         // For binary expressions (string concatenation), rebuild with sorted classes
                         let quote_char = match class_match.quote_style {
@@ -221,9 +221,9 @@ impl FileProcessor {
 
         if safety_config.atomic_writes {
             if safety_config.create_backups {
-                atomic::atomic::write_file_with_backup(file_path, content)?;
+                atomic::operations::write_file_with_backup(file_path, content)?;
             } else {
-                atomic::atomic::write_file(file_path, content)?;
+                atomic::operations::write_file(file_path, content)?;
             }
 
             // Optionally verify the write
@@ -330,7 +330,8 @@ mod tests {
     }
 
     #[test]
-    fn test_twMerge_function() {
+    fn test_tw_merge_function() {
+        // Test multiline JSX with twMerge
         let processor = FileProcessor::new();
         let input = r#"twMerge("p-4 flex m-2", "p-2 items-center")"#;
         let expected = r#"twMerge("flex m-2 p-4", "items-center p-2")"#;
@@ -354,7 +355,8 @@ mod tests {
     }
 
     #[test]
-    fn test_classNames_function() {
+    fn test_class_names_function() {
+        // Test multiline JSX with classNames
         let processor = FileProcessor::new();
         let input = r#"classNames("p-4 flex m-2 items-center")"#;
         let expected = r#"classNames("flex items-center m-2 p-4")"#;
@@ -366,7 +368,8 @@ mod tests {
     }
 
     #[test]
-    fn test_classList_function() {
+    fn test_class_list_function() {
+        // Test multiline JSX with classList
         let processor = FileProcessor::new();
         let input = r#"classList("p-4 flex m-2 items-center")"#;
         let expected = r#"classList("flex items-center m-2 p-4")"#;
@@ -1052,7 +1055,8 @@ const cardVariants = cva(['bg-white', 'rounded', 'shadow'], {
     }
 
     #[test]
-    fn test_multiline_jsx_className() {
+    fn test_multiline_jsx_class_name() {
+        // Test multiline JSX with className
         let processor = FileProcessor::new();
         let input = r#"className={"p-4 flex m-2" + "items-center bg-white hover:bg-gray-100"}"#;
         // Original left: 3 words, right: 3 words -> algorithm keeps that split

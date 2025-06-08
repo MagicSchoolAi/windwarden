@@ -2,7 +2,6 @@ use super::*;
 use crate::parser::ClassMatch;
 
 /// Utility functions for creating output format structures
-
 /// Create an issue from a class match that needs sorting
 pub fn create_sorting_issue(
     class_match: &ClassMatch,
@@ -68,7 +67,7 @@ pub fn position_to_line_col(content: &str, pos: usize) -> (usize, usize) {
 
 /// Extract file name from path for display
 pub fn extract_file_name(path: &str) -> &str {
-    path.split('/').last().unwrap_or(path)
+    path.split('/').next_back().unwrap_or(path)
 }
 
 /// Create an unformatted file entry for check reports

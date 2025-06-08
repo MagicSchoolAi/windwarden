@@ -268,6 +268,12 @@ impl FileResult {
     }
 }
 
+impl Default for DiagnosticReport {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl DiagnosticReport {
     pub fn new() -> Self {
         Self {
@@ -290,6 +296,12 @@ impl DiagnosticReport {
     }
 }
 
+impl Default for CheckReport {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl CheckReport {
     pub fn new() -> Self {
         Self {
@@ -302,6 +314,12 @@ impl CheckReport {
             },
             unformatted_files: Vec::new(),
         }
+    }
+}
+
+impl Default for DiffReport {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -318,6 +336,12 @@ impl DiffReport {
             },
             changes: Vec::new(),
         }
+    }
+}
+
+impl Default for SummaryReport {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
