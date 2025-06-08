@@ -1,6 +1,6 @@
 [package]
 name = "windwarden"
-version = "0.5.1"
+version = "0.5.2"
 edition = "2021"
 authors = ["Ben Duggan <ben@benduggan.com>"]
 description = "High-performance CLI tool for sorting Tailwind CSS classes"

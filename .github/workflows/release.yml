@@ -140,6 +140,14 @@ jobs:
           echo "=== Contents ==="
           ls -la artifacts/*/
 
+      - name: Create Git Tag (if from main branch)
+        if: github.ref == 'refs/heads/main'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -a "v${{ needs.check-release.outputs.version }}" -m "Release v${{ needs.check-release.outputs.version }}"
+          git push origin "v${{ needs.check-release.outputs.version }}"
+
       - name: Generate release notes
         id: release-notes
         run: |
@@ -231,11 +239,3 @@ jobs:
             artifacts/windwarden-macos-aarch64/windwarden
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Create Git Tag (if from main branch)
-        if: github.ref == 'refs/heads/main'
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git tag -a "v${{ needs.check-release.outputs.version }}" -m "Release v${{ needs.check-release.outputs.version }}"
-          git push origin "v${{ needs.check-release.outputs.version }}"
