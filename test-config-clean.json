@@ -1,0 +1,37 @@
+{
+  "sortOrder": "official",
+  "customOrder": [],
+  "presetRegex": "all",
+  "functionNames": [],
+  "customRegex": [],
+  "removeNullClasses": true,
+  "preserveDuplicates": false,
+  "ignorePaths": [
+    "node_modules",
+    "dist",
+    "build",
+    "coverage",
+    ".git",
+    ".next",
+    ".nuxt",
+    "target"
+  ],
+  "fileExtensions": [
+    "tsx",
+    "jsx",
+    "ts",
+    "js",
+    "vue",
+    "svelte"
+  ],
+  "categories": {},
+  "maxFileSize": 10485760,
+  "threads": 0,
+  "coloredOutput": true,
+  "defaultMode": null,
+  "safety": {
+    "atomicWrites": true,
+    "createBackups": false,
+    "verifyWrites": false
+  }
+}

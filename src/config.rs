@@ -64,30 +64,9 @@ pub struct Config {
     #[serde(default)]
     pub default_mode: Option<String>,
 
-    /// Git integration settings
-    #[serde(default)]
-    pub git: GitConfig,
-
     /// Safety settings for file operations
     #[serde(default)]
     pub safety: SafetyConfig,
-}
-
-/// Git-specific configuration
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct GitConfig {
-    /// Check if file is in git before processing
-    #[serde(default)]
-    pub check_git_status: bool,
-
-    /// Only process files in git index
-    #[serde(default)]
-    pub only_git_files: bool,
-
-    /// Respect .gitignore patterns
-    #[serde(default = "default_true")]
-    pub respect_gitignore: bool,
 }
 
 /// Safety-specific configuration for file operations
@@ -124,18 +103,7 @@ impl Default for Config {
             threads: 0,
             colored_output: true,
             default_mode: None,
-            git: GitConfig::default(),
             safety: SafetyConfig::default(),
-        }
-    }
-}
-
-impl Default for GitConfig {
-    fn default() -> Self {
-        Self {
-            check_git_status: false,
-            only_git_files: false,
-            respect_gitignore: true,
         }
     }
 }

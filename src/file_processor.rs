@@ -36,6 +36,9 @@ impl Default for FileDiscoveryConfig {
                 "dist/**".to_string(),
                 "build/**".to_string(),
                 "coverage/**".to_string(),
+                ".next/**".to_string(),
+                ".nuxt/**".to_string(),
+                "target/**".to_string(),
             ],
             max_depth: None,
             follow_links: false,
@@ -174,6 +177,9 @@ impl FileDiscovery {
                     || name_str == "build"
                     || name_str == "coverage"
                     || name_str == ".git"
+                    || name_str == ".next"
+                    || name_str == ".nuxt"
+                    || name_str == "target"
                 {
                     return true;
                 }
