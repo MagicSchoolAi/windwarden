@@ -4,20 +4,48 @@ use oxc_span::Span;
 
 use super::{ClassMatch, PatternType, QuoteStyle};
 
-const SUPPORTED_FUNCTIONS: &[&str] = &["cn", "twMerge", "clsx", "classNames", "classList", "cva"];
+const DEFAULT_SUPPORTED_FUNCTIONS: &[&str] = &["cn", "twMerge", "clsx", "classNames", "classList", "cva"];
 
 pub struct ClassExtractor<'a> {
     source_text: &'a str,
     matches: Vec<ClassMatch>,
     processed_spans: std::collections::HashSet<(usize, usize)>,
+    supported_functions: std::collections::HashSet<String>,
 }
 
 impl<'a> ClassExtractor<'a> {
     pub fn new(source_text: &'a str) -> Self {
+        let mut supported_functions = std::collections::HashSet::new();
+        for func in DEFAULT_SUPPORTED_FUNCTIONS {
+            supported_functions.insert(func.to_string());
+        }
+        
         Self {
             source_text,
             matches: Vec::new(),
             processed_spans: std::collections::HashSet::new(),
+            supported_functions,
+        }
+    }
+    
+    pub fn new_with_custom_functions(source_text: &'a str, custom_functions: &[String]) -> Self {
+        let mut supported_functions = std::collections::HashSet::new();
+        
+        // Add default functions
+        for func in DEFAULT_SUPPORTED_FUNCTIONS {
+            supported_functions.insert(func.to_string());
+        }
+        
+        // Add custom functions
+        for func in custom_functions {
+            supported_functions.insert(func.clone());
+        }
+        
+        Self {
+            source_text,
+            matches: Vec::new(),
+            processed_spans: std::collections::HashSet::new(),
+            supported_functions,
         }
     }
 
@@ -73,7 +101,7 @@ impl<'a> ClassExtractor<'a> {
     }
 
     fn is_supported_function(&self, function_name: &str) -> bool {
-        SUPPORTED_FUNCTIONS.contains(&function_name)
+        self.supported_functions.contains(function_name)
     }
 
     fn extract_function_name(&self, call_expr: &CallExpression) -> Option<String> {
@@ -191,10 +219,15 @@ impl<'a> Visit<'a> for ClassExtractor<'a> {
                 // Instead, we manually process arguments to avoid duplicates
                 self.process_function_arguments(&function_name, &call.arguments);
                 return;
+            } else {
+                // For unsupported function calls, don't visit arguments at all
+                // This prevents string literals inside them from being processed
+                self.visit_expression(&call.callee);
+                return;
             }
         }
         
-        // For non-supported functions, continue normal visiting
+        // For non-function expressions (member expressions, etc.), continue normal visiting
         self.visit_expression(&call.callee);
         for arg in &call.arguments {
             self.visit_argument(arg);
@@ -331,6 +364,86 @@ impl<'a> Visit<'a> for ClassExtractor<'a> {
             }
         }
     }
+    
+    fn visit_object_property(&mut self, prop: &ObjectProperty<'a>) {
+        // Check if this is a className or class property
+        if let PropertyKey::StaticIdentifier(ident) = &prop.key {
+            if self.is_class_attribute(&ident.name) {
+                // Process the value if it's a string literal
+                if let Expression::StringLiteral(string_lit) = &prop.value {
+                    let span_key = (string_lit.span.start as usize, string_lit.span.end as usize);
+                    
+                    // Skip if already processed
+                    if !self.processed_spans.contains(&span_key) {
+                        self.processed_spans.insert(span_key);
+                        
+                        let content = self.extract_class_string_content(string_lit.span);
+                        if self.looks_like_tailwind_classes(&content) {
+                            let quote_style = self.detect_quote_style(string_lit.span);
+                            
+                            let class_match = ClassMatch::new(
+                                string_lit.span.start as usize,
+                                string_lit.span.end as usize,
+                                content,
+                                quote_style,
+                                PatternType::JSXAttribute, // Treat similar to JSX attribute
+                            );
+                            self.matches.push(class_match);
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Continue visiting other parts of the object property
+        self.visit_property_key(&prop.key);
+        self.visit_expression(&prop.value);
+    }
+    
+    fn visit_binary_expression(&mut self, expr: &BinaryExpression<'a>) {
+        // Handle string concatenation (e.g., "classes " + "more classes")
+        if matches!(expr.operator, BinaryOperator::Addition) {
+            if let (Expression::StringLiteral(left), Expression::StringLiteral(right)) = (&expr.left, &expr.right) {
+                // Check if both parts look like Tailwind classes
+                let left_content = self.extract_class_string_content(left.span);
+                let right_content = self.extract_class_string_content(right.span);
+                
+                if self.looks_like_tailwind_classes(&left_content) && self.looks_like_tailwind_classes(&right_content) {
+                    // Create a combined span covering both strings and the operator
+                    let span_key = (expr.span.start as usize, expr.span.end as usize);
+                    
+                    // Skip if already processed
+                    if !self.processed_spans.contains(&span_key) {
+                        self.processed_spans.insert(span_key);
+                        
+                        // Combine the class strings
+                        let combined_classes = format!("{} {}", left_content.trim(), right_content.trim());
+                        
+                        if self.looks_like_tailwind_classes(&combined_classes) {
+                            let quote_style = self.detect_quote_style(left.span);
+                            
+                            let class_match = ClassMatch::new(
+                                expr.span.start as usize,
+                                expr.span.end as usize,
+                                combined_classes,
+                                quote_style,
+                                PatternType::BinaryExpression {
+                                    left_content: left_content.clone(),
+                                    right_content: right_content.clone(),
+                                },
+                            );
+                            self.matches.push(class_match);
+                        }
+                    }
+                    return; // Don't visit children if we processed this concatenation
+                }
+            }
+        }
+        
+        // Continue normal visiting for non-string concatenations
+        self.visit_expression(&expr.left);
+        self.visit_expression(&expr.right);
+    }
 }
 
 #[cfg(test)]
@@ -373,6 +486,45 @@ mod tests {
         assert_eq!(matches.len(), 1);
         assert_eq!(matches[0].original, "p-4 flex m-2");
         assert_eq!(matches[0].quote_style, QuoteStyle::Single);
+    }
+    
+    #[test]
+    fn test_object_property_classname() {
+        let source = r#"const props = { className: "p-4 flex m-2 items-center" }"#;
+        let matches = parse_and_extract(source);
+        
+        assert_eq!(matches.len(), 1);
+        assert_eq!(matches[0].original, "p-4 flex m-2 items-center");
+        assert_eq!(matches[0].quote_style, QuoteStyle::Double);
+        assert_eq!(matches[0].pattern_type, PatternType::JSXAttribute);
+    }
+    
+    #[test]
+    fn test_object_property_class() {
+        let source = r#"const props = { class: "p-4 flex m-2 items-center" }"#;
+        let matches = parse_and_extract(source);
+        
+        assert_eq!(matches.len(), 1);
+        assert_eq!(matches[0].original, "p-4 flex m-2 items-center");
+    }
+    
+    #[test]
+    fn test_string_concatenation() {
+        let source = r#""p-4 flex m-2" + "items-center bg-white""#;
+        let matches = parse_and_extract(source);
+        
+        assert_eq!(matches.len(), 1);
+        assert_eq!(matches[0].original, "p-4 flex m-2 items-center bg-white");
+        assert_eq!(matches[0].quote_style, QuoteStyle::Double);
+    }
+    
+    #[test]
+    fn test_multiline_string_jsx() {
+        let source = r#"className={"p-4 flex m-2" + "items-center bg-white"}"#;
+        let matches = parse_and_extract(source);
+        
+        assert_eq!(matches.len(), 1);
+        assert_eq!(matches[0].original, "p-4 flex m-2 items-center bg-white");
     }
 
     #[test]

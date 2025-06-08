@@ -12,12 +12,21 @@ mod visitor;
 
 pub struct FileParser {
     allocator: Allocator,
+    custom_functions: Option<Vec<String>>,
 }
 
 impl FileParser {
     pub fn new() -> Self {
         Self {
             allocator: Allocator::default(),
+            custom_functions: None,
+        }
+    }
+    
+    pub fn new_with_custom_functions(custom_functions: Vec<String>) -> Self {
+        Self {
+            allocator: Allocator::default(),
+            custom_functions: Some(custom_functions),
         }
     }
 
@@ -57,7 +66,11 @@ impl FileParser {
             ));
         }
 
-        let mut extractor = ClassExtractor::new(&wrapped_source);
+        let mut extractor = if let Some(ref custom_functions) = self.custom_functions {
+            ClassExtractor::new_with_custom_functions(&wrapped_source, custom_functions)
+        } else {
+            ClassExtractor::new(&wrapped_source)
+        };
         extractor.visit_program(&program);
         
         let mut matches = extractor.into_matches();
@@ -147,6 +160,10 @@ pub enum PatternType {
     },
     Array {
         elements: Vec<String>, // All the string elements from the array
+    },
+    BinaryExpression {
+        left_content: String,
+        right_content: String,
     },
 }
 

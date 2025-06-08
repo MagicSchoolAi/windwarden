@@ -6,6 +6,7 @@ use rayon::prelude::*;
 use crate::{Result, WindWardenError, ProcessOptions};
 use crate::processor::FileProcessor as ContentProcessor;
 use crate::output::ProgressTracker;
+use crate::config::Config;
 
 /// Configuration for file discovery
 #[derive(Debug, Clone)]
@@ -300,6 +301,7 @@ pub struct FileProcessingPipeline {
     discovery: FileDiscovery,
     content_processor: ContentProcessor,
     processing_mode: ProcessingMode,
+    windwarden_config: Option<Config>,
 }
 
 impl FileProcessingPipeline {
@@ -312,6 +314,20 @@ impl FileProcessingPipeline {
             discovery: FileDiscovery::new(config)?,
             content_processor: ContentProcessor::new(),
             processing_mode,
+            windwarden_config: None,
+        })
+    }
+    
+    pub fn new_with_windwarden_config(
+        file_config: FileDiscoveryConfig, 
+        windwarden_config: &Config,
+        processing_mode: ProcessingMode
+    ) -> Result<Self> {
+        Ok(Self {
+            discovery: FileDiscovery::new(file_config)?,
+            content_processor: ContentProcessor::new_with_config(windwarden_config),
+            processing_mode,
+            windwarden_config: Some(windwarden_config.clone()),
         })
     }
 
@@ -371,12 +387,19 @@ impl FileProcessingPipeline {
     ) -> Result<BatchProcessingResults> {
         let mut results = BatchProcessingResults::new();
         
+        // Clone the config outside the parallel block to avoid Sync issues
+        let config_clone = self.windwarden_config.clone();
+        
         // Process files in parallel and collect results
         // Each thread gets its own ContentProcessor to avoid Sync issues with Oxc allocator
         let file_results: Vec<FileProcessingResult> = files
             .par_iter()
             .map(|file_path| {
-                let thread_processor = ContentProcessor::new();
+                let thread_processor = if let Some(ref config) = config_clone {
+                    ContentProcessor::new_with_config(config)
+                } else {
+                    ContentProcessor::new()
+                };
                 let result = Self::process_single_file_with_processor(&thread_processor, file_path, &options);
                 
                 // Update progress if tracker is provided
@@ -412,13 +435,21 @@ impl FileProcessingPipeline {
 
         let mut results = BatchProcessingResults::new();
         
+        // Clone the config outside the parallel block to avoid Sync issues
+        let config_clone = self.windwarden_config.clone();
+        
         // Process files in parallel with the configured thread pool
         // Each thread gets its own ContentProcessor to avoid Sync issues with Oxc allocator
         let file_results: Vec<FileProcessingResult> = pool.install(|| {
             files
                 .par_iter()
                 .map(|file_path| {
-                    let thread_processor = ContentProcessor::new();
+                    // Create a new ContentProcessor for this thread
+                    let thread_processor = if let Some(ref config) = config_clone {
+                        ContentProcessor::new_with_config(config)
+                    } else {
+                        ContentProcessor::new()
+                    };
                     let result = Self::process_single_file_with_processor(&thread_processor, file_path, &options);
                     
                     // Update progress if tracker is provided

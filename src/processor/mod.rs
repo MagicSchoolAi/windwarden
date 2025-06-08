@@ -2,11 +2,14 @@ use std::fs;
 
 use crate::parser::{FileParser, PatternType, QuoteStyle};
 use crate::sorter::TailwindSorter;
+use crate::config::Config;
+use crate::atomic;
 use crate::{ProcessOptions, Result, WindWardenError};
 
 pub struct FileProcessor {
     parser: FileParser,
     sorter: TailwindSorter,
+    config: Option<Config>,
 }
 
 impl FileProcessor {
@@ -14,6 +17,28 @@ impl FileProcessor {
         Self {
             parser: FileParser::new(),
             sorter: TailwindSorter::new(),
+            config: None,
+        }
+    }
+    
+    pub fn new_with_config(config: &Config) -> Self {
+        // Always use config manager to get effective function names (defaults + custom)
+        let temp_manager = crate::config::ConfigManager::new_with_config(config.clone(), None);
+        let all_functions = temp_manager.get_function_names();
+        
+        let parser = FileParser::new_with_custom_functions(all_functions);
+        
+        // Create sorter with custom order if specified
+        let sorter = if config.sort_order == "custom" && !config.custom_order.is_empty() {
+            TailwindSorter::new_with_custom_order(Some(config.custom_order.clone()))
+        } else {
+            TailwindSorter::new()
+        };
+        
+        Self {
+            parser,
+            sorter,
+            config: Some(config.clone()),
         }
     }
 
@@ -112,6 +137,41 @@ impl FileProcessor {
                             result.replace_range(class_match.start..class_match.end, &array_replacement);
                         }
                     }
+                    PatternType::BinaryExpression { left_content, right_content } => {
+                        // For binary expressions (string concatenation), rebuild with sorted classes
+                        let quote_char = match class_match.quote_style {
+                            QuoteStyle::Single => '\'',
+                            QuoteStyle::Double => '"',
+                            QuoteStyle::Backtick => '`',
+                        };
+                        
+                        // Split the sorted classes back into reasonable chunks
+                        // Try to preserve the original split pattern as much as possible
+                        let sorted_words: Vec<&str> = sorted_classes.split_whitespace().collect();
+                        let left_word_count = left_content.split_whitespace().count();
+                        
+                        let (left_words, right_words) = if left_word_count <= sorted_words.len() {
+                            sorted_words.split_at(left_word_count)
+                        } else {
+                            // If original left had more words, split roughly in half
+                            let split_point = sorted_words.len() / 2;
+                            sorted_words.split_at(split_point)
+                        };
+                        
+                        let new_left = left_words.join(" ");
+                        let new_right = right_words.join(" ");
+                        
+                        let binary_replacement = format!(
+                            "{}{}{} + {}{}{}",
+                            quote_char, new_left, quote_char,
+                            quote_char, new_right, quote_char
+                        );
+                        
+                        // Use span positions for binary expressions
+                        if class_match.start < result.len() && class_match.end <= result.len() {
+                            result.replace_range(class_match.start..class_match.end, &binary_replacement);
+                        }
+                    }
                 }
             }
         }
@@ -124,14 +184,49 @@ impl FileProcessor {
         }
 
         if options.write && changes_made {
-            fs::write(file_path, &result)
-                .map_err(|e| WindWardenError::Io(e))?;
+            self.write_file_safely(file_path, &result)?;
             Ok(String::new()) // No output needed when writing to file
         } else if options.dry_run || !options.write {
             Ok(result)
         } else {
             Ok(String::new()) // No changes and not in preview mode
         }
+    }
+    
+    /// Write file content using the configured safety settings
+    fn write_file_safely(&self, file_path: &str, content: &str) -> Result<()> {
+        // Use configuration if available, otherwise use defaults
+        let safety_config = self.config
+            .as_ref()
+            .map(|c| &c.safety)
+            .cloned()
+            .unwrap_or_default();
+        
+        if safety_config.atomic_writes {
+            if safety_config.create_backups {
+                atomic::atomic::write_file_with_backup(file_path, content)?;
+            } else {
+                atomic::atomic::write_file(file_path, content)?;
+            }
+            
+            // Optionally verify the write
+            if safety_config.verify_writes {
+                let written_content = fs::read_to_string(file_path)
+                    .map_err(|e| WindWardenError::from_io_error(e, Some(file_path)))?;
+                
+                if written_content != content {
+                    return Err(WindWardenError::internal_error(
+                        format!("File verification failed for {}: content mismatch", file_path)
+                    ));
+                }
+            }
+        } else {
+            // Fall back to direct write if atomic writes are disabled
+            fs::write(file_path, content)
+                .map_err(|e| WindWardenError::from_io_error(e, Some(file_path)))?;
+        }
+        
+        Ok(())
     }
 }
 
@@ -799,6 +894,49 @@ const cardVariants = cva(['bg-white', 'rounded', 'shadow'], {
         let processor = FileProcessor::new();
         let input = r#"<div className={cn("p-4 flex", cn("m-2 items-center", isActive && "bg-blue-500 text-white"))}>"#;
         let expected = r#"<div className={cn("flex p-4", cn("items-center m-2", isActive && "text-white bg-blue-500"))}>"#;
+        
+        let result = processor.process_content(input, "test.tsx", ProcessOptions::default()).unwrap();
+        assert_eq!(result, expected);
+    }
+    
+    #[test]
+    fn test_object_property_classname() {
+        let processor = FileProcessor::new();
+        let input = r#"const props = { className: "p-4 flex m-2 items-center" }"#;
+        let expected = r#"const props = { className: "flex items-center m-2 p-4" }"#;
+        
+        let result = processor.process_content(input, "test.tsx", ProcessOptions::default()).unwrap();
+        assert_eq!(result, expected);
+    }
+    
+    #[test]
+    fn test_object_property_class() {
+        let processor = FileProcessor::new();
+        let input = r#"const props = { class: "text-sm font-bold p-2 bg-blue-500" }"#;
+        let expected = r#"const props = { class: "p-2 font-bold text-sm bg-blue-500" }"#;
+        
+        let result = processor.process_content(input, "test.tsx", ProcessOptions::default()).unwrap();
+        assert_eq!(result, expected);
+    }
+    
+    #[test]
+    fn test_string_concatenation_simple() {
+        let processor = FileProcessor::new();
+        let input = r#""p-4 flex m-2" + "items-center bg-white""#;
+        // The algorithm redistributes sorted classes maintaining the original split ratio
+        // Original left: 3 words, right: 2 words -> left gets first 3, right gets rest
+        let expected = r#""flex items-center m-2" + "p-4 bg-white""#;
+        
+        let result = processor.process_content(input, "test.tsx", ProcessOptions::default()).unwrap();
+        assert_eq!(result, expected);
+    }
+    
+    #[test]
+    fn test_multiline_jsx_className() {
+        let processor = FileProcessor::new();
+        let input = r#"className={"p-4 flex m-2" + "items-center bg-white hover:bg-gray-100"}"#;
+        // Original left: 3 words, right: 3 words -> algorithm keeps that split 
+        let expected = r#"className={"flex items-center m-2" + "p-4 bg-white hover:bg-gray-100"}"#;
         
         let result = processor.process_content(input, "test.tsx", ProcessOptions::default()).unwrap();
         assert_eq!(result, expected);

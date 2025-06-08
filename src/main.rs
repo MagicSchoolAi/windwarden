@@ -1,13 +1,25 @@
-use clap::Parser;
+use clap::{Parser, CommandFactory};
+use std::io;
 use std::process;
 use std::time::Instant;
-use windwarden::cli::{Cli, Commands, OperationMode, ProcessingMode};
+use std::path::PathBuf;
+use windwarden::cli::{Cli, Commands, ConfigAction, OperationMode, ProcessingMode, Shell};
+use windwarden::config::{ConfigManager, Config};
 use windwarden::file_processor::{FileDiscoveryConfig, FileProcessingPipeline, FileDiscovery};
 use windwarden::output::{OutputFormatter, ProgressReporter, ProgressTracker};
 use windwarden::{process_file, process_stdin, ProcessOptions, WindWardenError};
 
 fn main() {
     let cli = Cli::parse();
+    
+    // Load configuration
+    let config_manager = match load_configuration(&cli) {
+        Ok(manager) => manager,
+        Err(e) => {
+            eprintln!("{}", e.user_message());
+            process::exit(1);
+        }
+    };
 
     let result = match &cli.command {
         Some(Commands::Process { file, dry_run, write }) => {
@@ -44,7 +56,7 @@ fn main() {
             progress,
             diff
         }) => {
-            handle_format_command(paths, *mode, *processing, *threads, extensions, exclude, *max_depth, *follow_links, *stats, *progress, *diff)
+            handle_format_command(&config_manager, paths, *mode, *processing, *threads, extensions, exclude, *max_depth, *follow_links, *stats, *progress, *diff)
         }
         
         Some(Commands::Check { 
@@ -57,7 +69,15 @@ fn main() {
             progress,
             diff
         }) => {
-            handle_check_command(paths, *processing, *threads, extensions, exclude, *stats, *progress, *diff)
+            handle_check_command(&config_manager, paths, *processing, *threads, extensions, exclude, *stats, *progress, *diff)
+        }
+        
+        Some(Commands::Config { action }) => {
+            handle_config_command(action, &config_manager)
+        }
+        
+        Some(Commands::Completions { shell }) => {
+            handle_completions_command(*shell)
         }
         
         None => {
@@ -103,6 +123,7 @@ fn main() {
 }
 
 fn handle_format_command(
+    config_manager: &ConfigManager,
     paths: &[String],
     mode: OperationMode,
     processing_mode: ProcessingMode,
@@ -138,7 +159,7 @@ fn handle_format_command(
         (ProcessingMode::Parallel, None) => windwarden::file_processor::ProcessingMode::Parallel,
     };
     
-    let pipeline = FileProcessingPipeline::new_with_mode(config.clone(), pipeline_mode)?;
+    let pipeline = FileProcessingPipeline::new_with_windwarden_config(config.clone(), config_manager.config(), pipeline_mode)?;
     
     // Validate inputs
     if paths.is_empty() {
@@ -220,6 +241,7 @@ fn handle_format_command(
 }
 
 fn handle_check_command(
+    config_manager: &ConfigManager,
     paths: &[String],
     processing_mode: ProcessingMode,
     threads: Option<usize>,
@@ -231,6 +253,7 @@ fn handle_check_command(
 ) -> Result<i32, Box<dyn std::error::Error>> {
     // Check command is equivalent to format with verify mode
     handle_format_command(
+        config_manager,
         paths,
         OperationMode::Verify,
         processing_mode,
@@ -243,4 +266,139 @@ fn handle_check_command(
         show_progress,
         show_diff,
     )
+}
+
+fn load_configuration(cli: &Cli) -> Result<ConfigManager, WindWardenError> {
+    match &cli.config {
+        Some(config_path) => {
+            // Load from specific path
+            if !config_path.exists() {
+                return Err(WindWardenError::config_error(format!(
+                    "Configuration file not found: {}", 
+                    config_path.display()
+                )));
+            }
+            let config = ConfigManager::load_config_file(config_path)?;
+            let manager = ConfigManager::new_with_config(config, Some(config_path.clone()));
+            Ok(manager)
+        }
+        None => {
+            // Search for config file in current directory and parents
+            let current_dir = std::env::current_dir()
+                .map_err(|e| WindWardenError::from_io_error(e, None))?;
+            ConfigManager::load_from_directory(&current_dir)
+        }
+    }
+}
+
+fn handle_config_command(
+    action: &ConfigAction, 
+    config_manager: &ConfigManager
+) -> Result<i32, Box<dyn std::error::Error>> {
+    match action {
+        ConfigAction::Init { path } => {
+            if path.exists() {
+                eprintln!("Configuration file already exists: {}", path.display());
+                eprintln!("Use --force to overwrite (not implemented yet)");
+                return Ok(1);
+            }
+            
+            ConfigManager::create_default_config(path)?;
+            println!("Created default configuration file: {}", path.display());
+            println!("\nTo customize your configuration, edit the file and modify settings like:");
+            println!("  - sortOrder: \"official\" or \"custom\"");
+            println!("  - customOrder: [\"layout\", \"flexbox-grid\", \"spacing\", ...]");
+            println!("  - functionNames: [\"cn\", \"clsx\", \"yourCustomFunction\"]");
+            println!("  - ignorePaths: [\"node_modules\", \"dist\"]");
+            println!("  - fileExtensions: [\"tsx\", \"jsx\", \"ts\", \"js\"]");
+            println!("\nAvailable categories for customOrder: ");
+            let categories = ConfigManager::get_available_categories();
+            println!("  [{}]", categories.join(", "));
+            Ok(0)
+        }
+        
+        ConfigAction::Show => {
+            let config = config_manager.config();
+            let json = serde_json::to_string_pretty(config)
+                .map_err(|e| WindWardenError::config_error(format!("Failed to serialize config: {}", e)))?;
+            
+            println!("Current configuration:");
+            if let Some(path) = config_manager.config_path() {
+                println!("Loaded from: {}", path.display());
+            } else {
+                println!("Using default configuration (no config file found)");
+            }
+            println!("\n{}", json);
+            Ok(0)
+        }
+        
+        ConfigAction::Validate { path } => {
+            let config_path = match path {
+                Some(p) => p.clone(),
+                None => {
+                    if let Some(p) = config_manager.config_path() {
+                        p.clone()
+                    } else {
+                        return Err(Box::new(WindWardenError::config_error(
+                            "No configuration file specified and none found"
+                        )));
+                    }
+                }
+            };
+            
+            match ConfigManager::load_config_file(&config_path) {
+                Ok(_) => {
+                    println!("✓ Configuration file is valid: {}", config_path.display());
+                    Ok(0)
+                }
+                Err(e) => {
+                    eprintln!("✗ Configuration file is invalid: {}", config_path.display());
+                    eprintln!("{}", e.user_message());
+                    Ok(1)
+                }
+            }
+        }
+    }
+}
+
+fn handle_completions_command(shell: Shell) -> Result<i32, Box<dyn std::error::Error>> {
+    let mut cmd = Cli::command();
+    let app_name = cmd.get_name().to_string();
+    
+    match shell {
+        Shell::Bash => {
+            clap_complete::generate(
+                clap_complete::shells::Bash,
+                &mut cmd,
+                app_name,
+                &mut io::stdout(),
+            );
+        }
+        Shell::Zsh => {
+            clap_complete::generate(
+                clap_complete::shells::Zsh,
+                &mut cmd,
+                app_name,
+                &mut io::stdout(),
+            );
+        }
+        Shell::Fish => {
+            clap_complete::generate(
+                clap_complete::shells::Fish,
+                &mut cmd,
+                app_name,
+                &mut io::stdout(),
+            );
+        }
+        Shell::PowerShell => {
+            clap_complete::generate(
+                clap_complete::shells::PowerShell,
+                &mut cmd,
+                app_name,
+                &mut io::stdout(),
+            );
+        }
+    }
+    
+    Ok(0)
 }

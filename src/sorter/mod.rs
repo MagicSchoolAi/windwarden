@@ -6,25 +6,34 @@ pub use categories::*;
 mod categories;
 
 pub struct TailwindSorter {
-    category_order: &'static [&'static str],
+    category_order: Vec<String>,
     class_categories: &'static HashMap<&'static str, &'static str>,
     // Cache for category lookups to avoid repeated iteration
     category_cache: std::cell::RefCell<HashMap<String, String>>,
     // Pre-computed category order map for O(1) lookups
-    category_order_map: HashMap<&'static str, usize>,
+    category_order_map: HashMap<String, usize>,
 }
 
 impl TailwindSorter {
     pub fn new() -> Self {
+        Self::new_with_custom_order(None)
+    }
+    
+    pub fn new_with_custom_order(custom_order: Option<Vec<String>>) -> Self {
+        let category_order = match custom_order {
+            Some(order) => order,
+            None => CATEGORY_ORDER.iter().map(|&s| s.to_string()).collect(),
+        };
+        
         // Pre-compute category order map for O(1) lookups
-        let category_order_map: HashMap<&'static str, usize> = CATEGORY_ORDER
+        let category_order_map: HashMap<String, usize> = category_order
             .iter()
             .enumerate()
-            .map(|(i, &category)| (category, i))
+            .map(|(i, category)| (category.clone(), i))
             .collect();
             
         Self {
-            category_order: &CATEGORY_ORDER,
+            category_order,
             class_categories: &CLASS_CATEGORIES,
             category_cache: std::cell::RefCell::new(HashMap::new()),
             category_order_map,
@@ -142,11 +151,11 @@ impl TailwindSorter {
                 'p' if base_class.starts_with("p-") || base_class.starts_with("px-") || 
                        base_class.starts_with("py-") || base_class.starts_with("pt-") ||
                        base_class.starts_with("pb-") || base_class.starts_with("pl-") ||
-                       base_class.starts_with("pr-") => return "padding",
+                       base_class.starts_with("pr-") => return "spacing",
                 'm' if base_class.starts_with("m-") || base_class.starts_with("mx-") || 
                        base_class.starts_with("my-") || base_class.starts_with("mt-") ||
                        base_class.starts_with("mb-") || base_class.starts_with("ml-") ||
-                       base_class.starts_with("mr-") => return "margin",
+                       base_class.starts_with("mr-") => return "spacing",
                 'w' if base_class.starts_with("w-") => return "sizing",
                 'h' if base_class.starts_with("h-") => return "sizing",
                 _ => {}
@@ -170,6 +179,16 @@ impl TailwindSorter {
     fn get_category_order(&self, category: &str) -> usize {
         // Use pre-computed map for O(1) lookup instead of O(n) iteration
         self.category_order_map.get(category).copied().unwrap_or(999)
+    }
+    
+    /// Get the default category order
+    pub fn get_default_category_order() -> Vec<String> {
+        CATEGORY_ORDER.iter().map(|&s| s.to_string()).collect()
+    }
+    
+    /// Get the current category order
+    pub fn get_category_order_list(&self) -> &Vec<String> {
+        &self.category_order
     }
 }
 

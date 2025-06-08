@@ -1,0 +1,37 @@
+{
+  "sortOrder": "custom",
+  "customOrder": ["effects", "transitions", "transforms", "backgrounds", "typography", "borders", "spacing", "sizing", "flexbox-grid", "layout"],
+  "presetRegex": "all",
+  "functionNames": ["myMerge", "cx"],
+  "customRegex": [],
+  "removeNullClasses": true,
+  "preserveDuplicates": false,
+  "ignorePaths": [
+    "node_modules",
+    "dist",
+    "build",
+    "coverage",
+    ".git",
+    ".next",
+    ".nuxt",
+    "target"
+  ],
+  "fileExtensions": [
+    "tsx",
+    "jsx",
+    "ts",
+    "js",
+    "vue",
+    "svelte"
+  ],
+  "categories": {},
+  "maxFileSize": 10485760,
+  "threads": 0,
+  "coloredOutput": true,
+  "defaultMode": null,
+  "git": {
+    "checkGitStatus": false,
+    "onlyGitFiles": false,
+    "respectGitignore": true
+  }
+}
