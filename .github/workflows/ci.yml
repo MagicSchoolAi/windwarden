@@ -100,8 +100,8 @@ jobs:
           ./target/release/windwarden${{ matrix.os == 'windows-latest' && '.exe' || '' }} --help
 
           # Test configuration commands
-          ./target/release/windwarden${{ matrix.os == 'windows-latest' && '.exe' || '' }} config init --path test-config.json
-          ./target/release/windwarden${{ matrix.os == 'windows-latest' && '.exe' || '' }} config validate test-config.json
+          ./target/release/windwarden${{ matrix.os == 'windows-latest' && '.exe' || '' }} config init --path ci-test-config.json
+          ./target/release/windwarden${{ matrix.os == 'windows-latest' && '.exe' || '' }} config validate ci-test-config.json
           ./target/release/windwarden${{ matrix.os == 'windows-latest' && '.exe' || '' }} config show > /dev/null
 
           # Test completions generation
@@ -112,6 +112,9 @@ jobs:
           # Test processing with test files
           echo '<div className="p-4 flex m-2">' > test.tsx
           ./target/release/windwarden${{ matrix.os == 'windows-latest' && '.exe' || '' }} format --mode check test.tsx
+
+          # Cleanup
+          rm -f ci-test-config.json test.tsx
 
   # Performance testing
   benchmark:
