@@ -9,7 +9,6 @@
 let
   name = "tailwarden";
 
-
   tools = with pkgs; {
     cli = [
       jfmt
