@@ -171,8 +171,9 @@ jobs:
       
       - name: Install WindWarden
         run: |
-          # Install from releases (replace with actual installation method)
-          curl -L https://github.com/your-org/windwarden/releases/latest/download/windwarden-linux -o windwarden
+          # See README.md for installation instructions
+          # Using curl method for CI/CD
+          curl -L https://github.com/benduggan/windwarden/releases/latest/download/windwarden-linux-x86_64 -o windwarden
           chmod +x windwarden
           sudo mv windwarden /usr/local/bin/
       
