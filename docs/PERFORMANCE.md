@@ -35,23 +35,21 @@ WindWarden has been extensively optimized for high-performance Tailwind CSS clas
 ## 🔧 Performance Optimizations Implemented
 
 ### **1. Sorter Optimizations**
-- **Category Caching**: Implemented LRU cache for category lookups
 - **Fast Path Detection**: Optimized common Tailwind patterns (p-, m-, w-, h-)
-- **Pre-computed Category Maps**: O(1) category order lookups vs O(n) iteration
+- **Pre-computed Category Maps**: HashMap-based category lookups
 - **Reduced Allocations**: Pre-allocated vectors with estimated capacity
 - **Unstable Sorting**: Used `sort_unstable_by` for better performance
 
 ### **2. Memory Optimizations**
-- **String Interning**: Common class names are deduplicated
-- **Thread-local Sorters**: Avoid repeated allocations across threads
 - **Single Class Fast Path**: Skip processing overhead for single classes
 - **Capacity Pre-allocation**: Vec with estimated capacity based on input
+- **Memory Arena Allocation**: Oxc parser uses arena allocation for AST nodes
 
 ### **3. Parallel Processing Optimizations**
-- **Optimal Thread Count**: Automatically detects and uses optimal thread count (8 threads)
+- **Configurable Thread Count**: Supports custom thread count configuration
 - **Work-stealing**: Rayon thread pool with work-stealing for load balancing
-- **Memory Arena Isolation**: Separate Oxc allocators per thread to avoid contention
-- **Batch Size Optimization**: Dynamic batch sizing based on file count and thread count
+- **Memory Arena per File**: Oxc allocators provide fast allocation for each parsed file
+- **Parallel File Processing**: Concurrent processing of multiple files
 
 ### **4. File Processing Optimizations**
 - **Fast Path Pre-filtering**: Skip files that don't need processing
@@ -62,16 +60,16 @@ WindWarden has been extensively optimized for high-performance Tailwind CSS clas
 ## 🎯 Performance Bottlenecks Identified & Resolved
 
 ### **Identified Bottlenecks:**
-1. **Category Lookup**: O(n) iteration through all categories → **Fixed with caching & fast paths**
-2. **Memory Allocations**: Repeated String allocations → **Fixed with string interning**
-3. **Thread Overhead**: Diminishing returns beyond 8 threads → **Fixed with optimal thread detection**
-4. **Complex File Processing**: 7.4x slower for complex vs simple files → **Acceptable tradeoff for accuracy**
+1. **Category Lookup**: O(n) iteration through all categories → **Improved with HashMap lookups**
+2. **Memory Allocations**: Repeated String allocations → **Reduced with arena allocation**
+3. **Thread Overhead**: Diminishing returns beyond optimal thread count → **Configurable thread management**
+4. **Complex File Processing**: More time needed for complex files → **Acceptable tradeoff for accuracy**
 
 ### **Optimization Results:**
-- **Category Lookups**: 75% faster for common patterns
-- **Memory Usage**: 40% reduction in allocations for typical workloads  
-- **Parallel Efficiency**: 75% improvement with optimal thread count
-- **Overall Performance**: 2.1x speedup for real-world scenarios
+- **Category Lookups**: Faster with HashMap-based category mapping
+- **Memory Usage**: Efficient allocation with Oxc arena allocators
+- **Parallel Efficiency**: Good speedup with parallel file processing
+- **Overall Performance**: Significant improvement over sequential processing
 
 ## 📈 Benchmark Results
 
@@ -105,8 +103,7 @@ WindWarden scales linearly with:
 1. **Oxc Parser**: Fastest JavaScript/TypeScript parser in Rust
 2. **Rayon Thread Pool**: Work-stealing parallelism  
 3. **Memory Arenas**: Fast allocation with automatic cleanup
-4. **Category System**: Optimized Tailwind class categorization
-5. **String Pool**: Deduplication for common patterns
+4. **Category System**: HashMap-based Tailwind class categorization
 
 ### **Performance-Critical Paths**
 

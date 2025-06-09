@@ -364,7 +364,7 @@ windwarden config validate <TAB>
 
 ```bash
 windwarden format --extensions <TAB>
-# Shows: common file extensions (tsx, jsx, ts, js, vue, svelte)
+# Shows: common file extensions (tsx, jsx, ts, js)
 
 windwarden completions <TAB>
 # Shows: bash, zsh, fish, powershell

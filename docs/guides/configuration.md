@@ -61,9 +61,7 @@ Configuration files use JSON format with this structure:
   "sortOrder": "official",
   "customOrder": [],
   "functionNames": ["cn", "clsx", "twMerge", "classnames"],
-  "presetRegex": "all",
-  "customRegex": [],
-  "fileExtensions": ["tsx", "jsx", "ts", "js", "vue", "svelte"],
+  "fileExtensions": ["tsx", "jsx", "ts", "js"],
   "maxFileSize": 1048576,
   "threads": 0,
   "removeNullClasses": true,
@@ -170,62 +168,16 @@ Configure which utility functions WindWarden should process.
 }
 ```
 
-### Preset Regex Patterns
+### Pattern Recognition
 
-| Setting | Type | Default | Description |
-|---------|------|---------|-------------|
-| `presetRegex` | `"all"` \| `"react"` \| `"vue"` \| `"svelte"` \| `"angular"` | `"all"` | Framework-specific preset patterns |
+WindWarden automatically recognizes Tailwind CSS classes in these patterns:
 
-#### Framework Presets
+- **JSX attributes**: `className="..."`, `class="..."`
+- **Utility functions**: Functions listed in `functionNames` configuration
+- **Template literals**: Tagged template literals like `tw\`...\``
+- **Arrays**: CVA patterns and basic array syntax
 
-```json
-{
-  "presetRegex": "react"    // React/JSX patterns only
-  "presetRegex": "vue"      // Vue.js patterns
-  "presetRegex": "svelte"   // Svelte patterns  
-  "presetRegex": "angular"  // Angular patterns
-  "presetRegex": "all"      // All framework patterns
-}
-```
-
-### Custom Regex Patterns
-
-| Setting | Type | Default | Description |
-|---------|------|---------|-------------|
-| `customRegex` | `string[]` | `[]` | Additional regex patterns for class detection |
-
-```json
-{
-  "customRegex": [
-    "myFramework\\([\"'`]([^\"'`]+)[\"'`]\\)",
-    "styled\\.[a-z]+`([^`]+)`",
-    "css\\([\"'`]([^\"'`]+)[\"'`]\\)"
-  ]
-}
-```
-
-#### Custom Pattern Examples
-
-```json
-{
-  "customRegex": [
-    // Styled-components
-    "styled\\.[a-z]+`([^`]+)`",
-    
-    // Emotion css function
-    "css\\([\"'`]([^\"'`]+)[\"'`]\\)",
-    
-    // Custom utility with multiple arguments
-    "myUtil\\((?:[^,]*,)*[\"'`]([^\"'`]+)[\"'`]",
-    
-    // Object property patterns
-    "className:\\s*[\"'`]([^\"'`]+)[\"'`]",
-    
-    // Array join patterns
-    "\\[[^\\]]*[\"'`]([^\"'`]+)[\"'`][^\\]]*\\]\\.join"
-  ]
-}
-```
+The parser uses AST-based detection to find class strings while preserving your original code formatting.
 
 ## File Processing
 
@@ -235,13 +187,12 @@ Configure which files WindWarden processes and how.
 
 | Setting | Type | Default | Description |
 |---------|------|---------|-------------|
-| `fileExtensions` | `string[]` | `["tsx", "jsx", "ts", "js", "vue", "svelte"]` | File types to process |
+| `fileExtensions` | `string[]` | `["tsx", "jsx", "ts", "js"]` | File types to process |
 
 ```json
 {
   "fileExtensions": ["tsx", "jsx"]  // React only
-  "fileExtensions": ["vue", "ts"]   // Vue + TypeScript
-  "fileExtensions": ["svelte"]      // Svelte only
+  "fileExtensions": ["ts", "js"]    // TypeScript + JavaScript
 }
 ```
 
@@ -326,10 +277,10 @@ Understanding how settings interact with each other.
 
 ### 2. Function Processing Rules
 
-- Functions are processed in the order listed in `functionNames`
-- `presetRegex` adds framework-specific patterns automatically
-- `customRegex` patterns are added to function recognition
-- Order matters for pattern matching - first match wins
+- Functions are processed based on the `functionNames` configuration
+- Default function names include: `cn`, `clsx`, `twMerge`, `classNames`, `classList`, `cva`
+- Additional function names can be specified in the `functionNames` array
+- AST-based parsing ensures accurate detection of class strings
 
 ### 3. File Discovery Rules
 
@@ -360,7 +311,6 @@ Understanding how settings interact with each other.
 {
   "sortOrder": "official",
   "functionNames": ["cn", "clsx", "twMerge"],
-  "presetRegex": "react",
   "fileExtensions": ["tsx", "jsx", "ts", "js"],
   "maxFileSize": 1048576,
   "threads": 0,
@@ -374,17 +324,13 @@ Understanding how settings interact with each other.
 }
 ```
 
-### Vue Project Configuration
+### TypeScript Project Configuration
 
 ```json
 {
   "sortOrder": "official",
   "functionNames": ["cn", "clsx"],
-  "presetRegex": "vue",
-  "fileExtensions": ["vue", "ts", "js"],
-  "customRegex": [
-    "\\$style\\[[\"'`]([^\"'`]+)[\"'`]\\]"
-  ],
+  "fileExtensions": ["ts", "tsx", "js", "jsx"],
   "maxFileSize": 2097152,
   "threads": 4,
   "safety": {
@@ -411,8 +357,7 @@ Understanding how settings interact with each other.
     "effects"
   ],
   "functionNames": ["cn", "clsx", "twMerge", "classNames"],
-  "presetRegex": "all",
-  "fileExtensions": ["tsx", "jsx", "vue", "svelte"],
+  "fileExtensions": ["tsx", "jsx", "ts", "js"],
   "maxFileSize": 1048576,
   "threads": 0,
   "safety": {
@@ -429,7 +374,6 @@ Understanding how settings interact with each other.
 {
   "sortOrder": "official",
   "functionNames": ["cn"],
-  "presetRegex": "react",
   "fileExtensions": ["tsx", "jsx"],
   "maxFileSize": 524288,  // 512KB limit
   "threads": 2,           // Limited threads
@@ -532,8 +476,6 @@ WindWarden validates configuration against this schema:
     "sortOrder": {"enum": ["official", "custom"]},
     "customOrder": {"type": "array", "items": {"type": "string"}},
     "functionNames": {"type": "array", "items": {"type": "string"}},
-    "presetRegex": {"enum": ["all", "react", "vue", "svelte", "angular"]},
-    "customRegex": {"type": "array", "items": {"type": "string"}},
     "fileExtensions": {"type": "array", "items": {"type": "string"}},
     "maxFileSize": {"type": "integer", "minimum": 0},
     "threads": {"type": "integer", "minimum": 0},

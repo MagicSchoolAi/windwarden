@@ -9,7 +9,7 @@ WindWarden automatically sorts Tailwind CSS classes according to the official re
 - **🚀 Lightning Fast** - Built in Rust with [Oxc parser](https://github.com/oxc-project/oxc) for maximum performance
 - **🎯 Smart Parsing** - AST-based parsing handles complex patterns and preserves formatting
 - **🔧 Flexible Configuration** - Support for custom sort orders, function names, and patterns
-- **📁 Multi-Format Support** - Works with `.js`, `.jsx`, `.ts`, `.tsx`, `.vue`, `.svelte`, and more
+- **📁 Multi-Format Support** - Works with `.js`, `.jsx`, `.ts`, `.tsx` files
 - **⚡ Parallel Processing** - Multi-threaded file processing for large codebases
 - **🛡️ Safe Operations** - Preserves quotes, indentation, and original formatting
 

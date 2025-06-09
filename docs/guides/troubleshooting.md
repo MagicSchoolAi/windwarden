@@ -34,7 +34,7 @@ Statistics:
 windwarden config show
 
 # Override extensions for testing
-windwarden format --extensions tsx,jsx,ts,js,vue,svelte src/
+windwarden format --extensions tsx,jsx,ts,js src/
 ```
 
 #### Verify File Paths
@@ -146,13 +146,10 @@ WindWarden searches in this order:
 }
 ```
 
-#### Add Custom Regex Patterns
+#### Add Custom Function Names
 ```json
 {
-  "customRegex": [
-    "myFunction\\([\"'`]([^\"'`]+)[\"'`]\\)",
-    "styled\\.[a-z]+`([^`]+)`"
-  ]
+  "functionNames": ["cn", "clsx", "twMerge", "myCustomUtil"]
 }
 ```
 
@@ -167,14 +164,13 @@ WindWarden uses heuristics to detect Tailwind classes:
 # Test on a single file with specific pattern
 windwarden format --diff src/component-with-issue.tsx
 
-# Use different preset regex
+# Test with expanded function names
 windwarden format --config test-config.json src/
 ```
 
 ```json
 {
-  "presetRegex": "all",  // Try "all" instead of framework-specific
-  "functionNames": ["*"] // Add all common function names
+  "functionNames": ["cn", "clsx", "twMerge", "classNames", "cx"] // Add more function names
 }
 ```
 
@@ -453,6 +449,7 @@ windwarden format src/lib/
 
 # Process by file type
 find src -name "*.tsx" | head -100 | xargs windwarden format --mode write
+find src -name "*.jsx" | head -100 | xargs windwarden format --mode write
 ```
 
 #### Optimization Configuration
@@ -461,9 +458,7 @@ find src -name "*.tsx" | head -100 | xargs windwarden format --mode write
   "threads": 4,
   "maxFileSize": 1048576,
   "fileExtensions": ["tsx", "jsx"],
-  "functionNames": ["cn"],
-  "presetRegex": "react",
-  "customRegex": []
+  "functionNames": ["cn"]
 }
 ```
 

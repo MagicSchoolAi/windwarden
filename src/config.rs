@@ -16,17 +16,9 @@ pub struct Config {
     #[serde(default)]
     pub custom_order: Vec<String>,
 
-    /// Preset regex patterns to use: "all", "react", "vue", etc.
-    #[serde(default = "default_preset_regex")]
-    pub preset_regex: String,
-
     /// Custom function names to detect (in addition to defaults)
     #[serde(default)]
     pub function_names: Vec<String>,
-
-    /// Custom regex patterns for class extraction
-    #[serde(default)]
-    pub custom_regex: Vec<String>,
 
     /// Whether to remove null/undefined classes from output
     #[serde(default = "default_true")]
@@ -91,9 +83,7 @@ impl Default for Config {
         Self {
             sort_order: default_sort_order(),
             custom_order: Vec::new(),
-            preset_regex: default_preset_regex(),
             function_names: Vec::new(),
-            custom_regex: Vec::new(),
             remove_null_classes: true,
             preserve_duplicates: false,
             ignore_paths: default_ignore_paths(),
@@ -123,10 +113,6 @@ fn default_sort_order() -> String {
     "official".to_string()
 }
 
-fn default_preset_regex() -> String {
-    "all".to_string()
-}
-
 fn default_true() -> bool {
     true
 }
@@ -150,8 +136,6 @@ fn default_file_extensions() -> Vec<String> {
         "jsx".to_string(),
         "ts".to_string(),
         "js".to_string(),
-        "vue".to_string(),
-        "svelte".to_string(),
     ]
 }
 
@@ -283,16 +267,6 @@ impl ConfigManager {
             }
         }
 
-        // Validate preset_regex
-        let valid_presets = ["all", "react", "vue", "svelte", "angular"];
-        if !valid_presets.contains(&config.preset_regex.as_str()) {
-            return Err(WindWardenError::config_error(format!(
-                "Invalid preset_regex '{}'. Valid options: {}",
-                config.preset_regex,
-                valid_presets.join(", ")
-            )));
-        }
-
         // Validate file extensions
         for ext in &config.file_extensions {
             if ext.is_empty() {
@@ -307,16 +281,6 @@ impl ConfigManager {
             return Err(WindWardenError::config_error(
                 "max_file_size must be greater than 0",
             ));
-        }
-
-        // Validate custom regex patterns
-        for regex_pattern in &config.custom_regex {
-            if let Err(e) = regex::Regex::new(regex_pattern) {
-                return Err(WindWardenError::config_error(format!(
-                    "Invalid custom regex '{}': {}",
-                    regex_pattern, e
-                )));
-            }
         }
 
         // Validate function names

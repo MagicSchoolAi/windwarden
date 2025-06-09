@@ -1,6 +1,6 @@
 # WindWarden Usage Guide
 
-WindWarden is a high-performance CLI tool for sorting and organizing Tailwind CSS classes according to the official Tailwind order. It works with React, Vue, Svelte, and any framework that uses Tailwind CSS.
+WindWarden is a high-performance CLI tool for sorting and organizing Tailwind CSS classes according to the official Tailwind order. It works with React and any framework that uses Tailwind CSS with JavaScript/TypeScript.
 
 ## Quick Reference
 
@@ -24,7 +24,7 @@ WindWarden is a high-performance CLI tool for sorting and organizing Tailwind CS
 | `--stats` | Show statistics | `windwarden format --stats src/` |
 | `--diff` | Show differences | `windwarden format --diff src/` |
 | `--exclude` | Skip patterns | `--exclude "node_modules/**,dist/**"` |
-| `--extensions` | File types | `--extensions tsx,jsx,vue` |
+| `--extensions` | File types | `--extensions tsx,jsx,ts,js` |
 | `--config` | Config file | `--config ./my-config.json` |
 
 ## Comprehensive Guides
@@ -89,8 +89,6 @@ WindWarden automatically detects and sorts classes in:
 
 **Supported file types:**
 - React: `.tsx`, `.jsx`, `.ts`, `.js`
-- Vue: `.vue`
-- Svelte: `.svelte`
 
 **Recognition patterns:**
 - All quote styles (single, double, backticks)
@@ -138,7 +136,7 @@ Create a `.windwarden.json` file to customize behavior:
 {
   "sortOrder": "official",
   "functionNames": ["cn", "clsx", "twMerge", "classnames"],
-  "fileExtensions": ["tsx", "jsx", "ts", "js", "vue", "svelte"],
+  "fileExtensions": ["tsx", "jsx", "ts", "js"],
   "removeNullClasses": true,
   "preserveDuplicates": false,
   "safety": {

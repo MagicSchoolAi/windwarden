@@ -6,7 +6,7 @@ Advanced features and optimization techniques for power users of WindWarden.
 
 - [Complex Pattern Recognition](#complex-pattern-recognition)
 - [Custom Sorting Orders](#custom-sorting-orders)
-- [Advanced Regex Patterns](#advanced-regex-patterns)
+- [Advanced Function Recognition](#advanced-function-recognition)
 - [Performance Optimization](#performance-optimization)
 - [Atomic File Operations](#atomic-file-operations)
 - [Output Formats](#output-formats)
@@ -137,73 +137,69 @@ borders, effects, filters, tables, transitions, transforms,
 interactivity, svg, accessibility
 ```
 
-## Advanced Regex Patterns
+## Advanced Function Recognition
 
-Extend WindWarden to recognize custom utility functions and patterns.
+Configure WindWarden to recognize additional utility functions and patterns.
 
 ### Custom Utility Functions
 
+Add additional function names to the `functionNames` configuration:
+
 ```json
 {
-  "functionNames": ["cn", "clsx", "twMerge"],
-  "customRegex": [
-    "myUtil\\([\"'`]([^\"'`]+)[\"'`]\\)",
-    "designSystem\\.classes\\([\"'`]([^\"'`]+)[\"'`]\\)",
-    "theme\\([\"'`]([^\"'`]+)[\"'`]\\)"
+  "functionNames": [
+    "cn",
+    "clsx", 
+    "twMerge",
+    "myUtil",
+    "designSystem.classes",
+    "theme"
   ]
 }
 ```
 
-### Framework-Specific Patterns
+### Supported Patterns
 
-#### Styled-Components
-```json
-{
-  "customRegex": [
-    "styled\\.[a-z]+`([^`]+)`",
-    "css`[^`]*className[^`]*?([\"'`])([^\"'`]+)\\1[^`]*`"
-  ]
-}
+WindWarden automatically recognizes these patterns through AST parsing:
+
+#### Function Calls
+```javascript
+// Standard utility functions
+cn("flex items-center p-4")
+clsx("bg-white", { "border-red-500": hasError })
+twMerge("text-sm font-bold")
+
+// Custom utility functions (when added to functionNames)
+myUtil("rounded-lg shadow-md")
+designSystem.classes("primary-button")
 ```
 
-#### Emotion
-```json
-{
-  "customRegex": [
-    "css\\([\"'`]([^\"'`]+)[\"'`]\\)",
-    "cx\\([\"'`]([^\"'`]+)[\"'`]\\)"
-  ]
-}
+#### Template Literals
+```javascript
+// Tagged templates
+tw`flex items-center p-4`
+css`
+  .button {
+    @apply bg-blue-500 text-white px-4 py-2 rounded;
+  }
+`
+
+// Template string interpolation (static parts only)
+const classes = `flex items-center ${baseClasses} p-4`
 ```
 
-#### Stitches
-```json
-{
-  "customRegex": [
-    "styled\\([\"'`]([^\"'`]+)[\"'`]\\)",
-    "css\\({[^}]*class:[^}]*?[\"'`]([^\"'`]+)[\"'`][^}]*}\\)"
-  ]
-}
-```
+#### Array Patterns
+```javascript
+// CVA (Class Variance Authority) patterns
+const variants = cva([
+  "font-semibold",
+  "border", 
+  "rounded",
+  "focus:outline-none"
+])
 
-### Complex Pattern Examples
-
-```json
-{
-  "customRegex": [
-    // Match template literals with custom tags
-    "tw\\.\\w+`([^`]+)`",
-    
-    // Match object destructuring patterns
-    "\\{[^}]*className:[^}]*?[\"'`]([^\"'`]+)[\"'`][^}]*\\}",
-    
-    // Match array join patterns
-    "\\[[^\\]]*[\"'`]([^\"'`]+)[\"'`][^\\]]*\\]\\.join\\(",
-    
-    // Match conditional class expressions
-    "\\?[^:]*[\"'`]([^\"'`]+)[\"'`][^:]*:"
-  ]
-}
+// Basic arrays
+const classes = ["flex", "items-center", "p-4"]
 ```
 
 ## Performance Optimization
@@ -481,7 +477,7 @@ module.exports = {
 ```bash
 # Process by file type
 find src -name "*.tsx" -exec windwarden format --mode write {} +
-find src -name "*.vue" -exec windwarden format --mode write {} +
+find src -name "*.jsx" -exec windwarden format --mode write {} +
 
 # Process with xargs for large file lists
 find src -name "*.tsx" | xargs -P 4 -I {} windwarden format --mode write {}
@@ -492,7 +488,7 @@ find src -name "*.tsx" | xargs -P 4 -I {} windwarden format --mode write {}
 ```bash
 # Multiple configurations for different projects
 windwarden --config .windwarden.react.json format src/
-windwarden --config .windwarden.vue.json format src/
+windwarden --config .windwarden.typescript.json format src/
 
 # Environment-specific configurations
 if [ "$NODE_ENV" = "development" ]; then
@@ -520,7 +516,7 @@ git diff --name-only HEAD~1 | grep -E '\.(tsx?|jsx?)$' | xargs windwarden format
 # pre-commit-windwarden.sh
 
 # Get staged files
-STAGED_FILES=$(git diff --cached --name-only --diff-filter=ACMR | grep -E '\.(tsx?|jsx?|vue|svelte)$')
+STAGED_FILES=$(git diff --cached --name-only --diff-filter=ACMR | grep -E '\.(tsx?|jsx?)$')
 
 if [ -n "$STAGED_FILES" ]; then
   echo "Running WindWarden on staged files..."

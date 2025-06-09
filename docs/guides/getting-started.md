@@ -4,7 +4,7 @@ A quick introduction to WindWarden, the high-performance CLI tool for sorting an
 
 ## What is WindWarden?
 
-WindWarden automatically sorts your Tailwind CSS classes according to the official Tailwind order, making your code more consistent and readable. It works with React, Vue, Svelte, and any framework that uses Tailwind CSS.
+WindWarden automatically sorts your Tailwind CSS classes according to the official Tailwind order, making your code more consistent and readable. It works with React and any framework that uses Tailwind CSS with JavaScript/TypeScript.
 
 ## Installation
 
@@ -99,7 +99,7 @@ This creates `.windwarden.json` with sensible defaults:
 {
   "sortOrder": "official",
   "functionNames": ["cn", "clsx", "twMerge", "classnames"],
-  "fileExtensions": ["tsx", "jsx", "ts", "js", "vue", "svelte"]
+  "fileExtensions": ["tsx", "jsx", "ts", "js"]
 }
 ```
 
@@ -118,8 +118,6 @@ This creates `.windwarden.json` with sensible defaults:
 
 WindWarden works with these file types by default:
 - **React**: `.tsx`, `.jsx`, `.ts`, `.js`
-- **Vue**: `.vue`
-- **Svelte**: `.svelte`
 
 And recognizes these patterns:
 - JSX `className` and `class` attributes
@@ -152,17 +150,6 @@ windwarden format --mode write src/components/
 windwarden format --mode write src/ pages/ app/
 ```
 
-### Vue
-```bash
-# Format Vue components and composables
-windwarden format --mode write src/ --extensions vue,ts,js
-```
-
-### Svelte
-```bash
-# Format Svelte components
-windwarden format --mode write src/ --extensions svelte,ts,js
-```
 
 ### Monorepo
 ```bash

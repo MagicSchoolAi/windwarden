@@ -34,7 +34,7 @@ repos:
         name: WindWarden CSS Class Sorter
         entry: windwarden
         language: system
-        files: \.(tsx?|jsx?|vue|svelte)$
+        files: \.(tsx?|jsx?)$
         args: ["--write"]
         pass_filenames: true
 ```
@@ -59,14 +59,14 @@ repos:
         name: WindWarden Check (Verify Mode)
         entry: windwarden
         language: system
-        files: \.(tsx?|jsx?|vue|svelte)$
+        files: \.(tsx?|jsx?)$
         args: ["--verify", "--format", "json"]
         pass_filenames: true
       - id: windwarden-format
         name: WindWarden Format
         entry: windwarden
         language: system
-        files: \.(tsx?|jsx?|vue|svelte)$
+        files: \.(tsx?|jsx?)$
         args: ["--write", "--config", ".windwarden.json"]
         pass_filenames: true
 ```
@@ -92,7 +92,7 @@ if ! command -v windwarden &> /dev/null; then
 fi
 
 # Get list of staged files
-staged_files=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.(tsx?|jsx?|vue|svelte)$')
+staged_files=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.(tsx?|jsx?)$')
 
 if [ -z "$staged_files" ]; then
     exit 0
@@ -128,7 +128,7 @@ Create `.git/hooks/pre-push` for additional verification:
 echo "Running final WindWarden check before push..."
 
 # Check all tracked files
-if ! windwarden --verify $(git ls-files | grep -E '\.(tsx?|jsx?|vue|svelte)$'); then
+if ! windwarden --verify $(git ls-files | grep -E '\.(tsx?|jsx?)$'); then
     echo "❌ Some files have unsorted CSS classes"
     echo "Please run 'windwarden --write .' before pushing"
     exit 1
@@ -160,8 +160,6 @@ on:
       - '**/*.jsx'
       - '**/*.ts'
       - '**/*.js'
-      - '**/*.vue'
-      - '**/*.svelte'
 
 jobs:
   css-lint:
@@ -248,8 +246,6 @@ css-lint:
       - "**/*.jsx"
       - "**/*.ts"
       - "**/*.js"
-      - "**/*.vue"
-      - "**/*.svelte"
 ```
 
 ### Azure DevOps
@@ -268,8 +264,6 @@ trigger:
       - "**/*.jsx"
       - "**/*.ts"
       - "**/*.js"
-      - "**/*.vue"
-      - "**/*.svelte"
 
 pool:
   vmImage: 'ubuntu-latest'
@@ -393,7 +387,7 @@ Create `.windwarden.json` in your project root:
     "dist/**",
     "build/**"
   ],
-  "fileExtensions": ["tsx", "jsx", "ts", "js", "vue", "svelte"],
+  "fileExtensions": ["tsx", "jsx", "ts", "js"],
   "git": {
     "respectGitignore": true,
     "onlyGitFiles": false

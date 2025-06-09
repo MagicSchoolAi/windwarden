@@ -13,8 +13,6 @@ pub mod utils;
 #[cfg(feature = "performance-profiling")]
 pub mod performance_utils;
 
-pub mod optimizations;
-
 use crate::config::Config;
 use crate::file_processor::{
     BatchProcessingResults, FileDiscoveryConfig, FileProcessingPipeline, ProcessingMode,
