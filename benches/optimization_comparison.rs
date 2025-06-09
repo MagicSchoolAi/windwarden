@@ -63,9 +63,5 @@ fn bench_class_complexity(c: &mut Criterion) {
     group.finish();
 }
 
-criterion_group!(
-    benches,
-    bench_sorter_performance,
-    bench_class_complexity
-);
+criterion_group!(benches, bench_sorter_performance, bench_class_complexity);
 criterion_main!(benches);
