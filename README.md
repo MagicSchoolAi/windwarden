@@ -9,7 +9,7 @@ WindWarden automatically sorts Tailwind CSS classes according to the official re
 - **🚀 Lightning Fast** - Built in Rust with [Oxc parser](https://github.com/oxc-project/oxc) for maximum performance
 - **🎯 Smart Parsing** - AST-based parsing handles complex patterns and preserves formatting
 - **🔧 Flexible Configuration** - Support for custom sort orders, function names, and patterns
-- **📁 Multi-Format Support** - Works with `.js`, `.jsx`, `.ts`, `.tsx`, `.vue`, `.svelte`, and more
+- **📁 Multi-Format Support** - Works with `.js`, `.jsx`, `.ts`, `.tsx` files
 - **⚡ Parallel Processing** - Multi-threaded file processing for large codebases
 - **🛡️ Safe Operations** - Preserves quotes, indentation, and original formatting
 
@@ -36,7 +36,7 @@ windwarden format --mode write src/
 # Check if files need formatting (CI/CD)
 windwarden check src/
 
-# Preview changes without writing
+# Preview changes without writing  
 windwarden format --mode check src/
 
 # Process from stdin
@@ -63,14 +63,15 @@ echo '<div className="p-4 flex m-2">' | windwarden --stdin
 
 | Document | Description |
 |----------|-------------|
-| **[Usage Guide](docs/USAGE.md)** | Comprehensive usage examples and CLI options |
-| **[Performance Guide](docs/PERFORMANCE.md)** | Performance benchmarks and optimization tips |
-| **[Architecture](docs/ARCHITECTUREPLAN.md)** | Technical architecture and design decisions |
+| **[Usage Guide](docs/USAGE.md)** | Complete command reference and quick start |
+| **[Getting Started](docs/guides/getting-started.md)** | Beginner-friendly setup and basic usage |
+| **[Advanced Usage](docs/guides/advanced-usage.md)** | Complex patterns and power user features |
+| **[Configuration](docs/guides/configuration.md)** | Complete configuration options and setup |
+| **[Troubleshooting](docs/guides/troubleshooting.md)** | Common issues and debug tips |
 | **[Git Integration](docs/GIT_INTEGRATION.md)** | Git hooks, CI/CD setup, and automation |
 | **[Shell Completions](docs/COMPLETIONS.md)** | Shell completion setup for bash, zsh, fish |
+| **[Performance Guide](docs/PERFORMANCE.md)** | Performance benchmarks and optimization tips |
 | **[Custom Sorting](docs/CUSTOM_SORTING_DEMO.md)** | Custom sort orders and configuration |
-| **[Project Plan](docs/PROJECTPLAN.md)** | Development roadmap and feature planning |
-| **[Resources](docs/RESOURCES.md)** | Additional resources and references |
 
 ## 🔧 Supported Patterns
 
@@ -104,6 +105,18 @@ Create a `.windwarden.json` config file:
   "fileExtensions": ["tsx", "jsx", "ts", "js"],
   "ignorePaths": ["node_modules", "dist"]
 }
+```
+
+## ✅ Check Mode
+
+The `check` command is a convenient alias for `format --mode verify`:
+
+```bash
+# These are equivalent:
+windwarden check src/
+windwarden format --mode verify src/
+
+# Both exit with code 1 if files need formatting
 ```
 
 ## 🚦 Exit Codes

@@ -117,7 +117,6 @@ enum RecoveryStrategy {
 ```json
 // Next.js project config
 {
-    "presetRegex": "cn",
     "functionNames": ["cn", "cx"],
     "sortOrder": "official",
     "removeNullClasses": true,
@@ -127,8 +126,7 @@ enum RecoveryStrategy {
 
 // Component library config
 {
-    "presetRegex": "all",
-    "customRegex": "tv\\(['\"`]([^'\"`]+)['\"`]\\)",
+    "functionNames": ["cn", "clsx", "twMerge", "tv"],
     "categories": {
         "custom-animations": ["animate-", "motion-"]
     },
