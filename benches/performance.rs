@@ -1,9 +1,9 @@
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use criterion::{BenchmarkId, Criterion, Throughput, black_box, criterion_group, criterion_main};
 use std::fs;
 use std::path::Path;
 use tempfile::TempDir;
 use windwarden::file_processor::{FileDiscoveryConfig, FileProcessingPipeline, ProcessingMode};
-use windwarden::{process_file, ProcessOptions};
+use windwarden::{ProcessOptions, process_file};
 
 /// Create test files with various complexity levels
 fn create_test_files(temp_dir: &Path, count: usize, complexity: &str) -> Vec<String> {

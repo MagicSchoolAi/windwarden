@@ -283,11 +283,7 @@ impl OutputFormatter {
         match operation_mode {
             crate::cli::OperationMode::Check | crate::cli::OperationMode::Write => {
                 // For check and write modes, exit with error only if there were failures
-                if results.failed_files > 0 {
-                    1
-                } else {
-                    0
-                }
+                if results.failed_files > 0 { 1 } else { 0 }
             }
             crate::cli::OperationMode::Verify => {
                 // For verify mode, exit with error if files need formatting or there were failures
@@ -301,8 +297,8 @@ impl OutputFormatter {
     }
 }
 
-use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Instant;
 
 /// Progress reporting for large file processing operations

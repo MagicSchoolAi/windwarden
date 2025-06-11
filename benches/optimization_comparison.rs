@@ -1,4 +1,4 @@
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use criterion::{Criterion, black_box, criterion_group, criterion_main};
 use windwarden::sorter::TailwindSorter;
 
 fn bench_sorter_performance(c: &mut Criterion) {

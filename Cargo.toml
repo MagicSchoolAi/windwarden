@@ -1,13 +1,16 @@
 [package]
 name = "windwarden"
-version = "0.5.5"
-edition = "2021"
-authors = ["Ben Duggan <ben@benduggan.com>"]
-description = "High-performance CLI tool for sorting Tailwind CSS classes"
+version = "0.6.0"
+edition = "2024"
+authors = ["Ben Duggan <ben@magicschool.ai>"]
+description = "High-performance CLI tool for sorting and organizing Tailwind CSS classes with AST-based parsing"
 license = "MIT"
-repository = "https://github.com/benduggan/windwarden"
-keywords = ["tailwind", "css", "cli", "formatter"]
-categories = ["command-line-utilities", "development-tools"]
+repository = "https://github.com/MagicSchoolAi/windwarden"
+homepage = "https://github.com/MagicSchoolAi/windwarden"
+documentation = "https://github.com/MagicSchoolAi/windwarden#readme"
+readme = "README.md"
+keywords = ["tailwind", "css", "cli", "formatter", "ast", "cva"]
+categories = ["command-line-utilities", "development-tools", "web-programming"]
 
 [[bin]]
 name = "windwarden"

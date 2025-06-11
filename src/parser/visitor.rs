@@ -1,5 +1,5 @@
-use oxc_ast::ast::*;
 use oxc_ast::Visit;
+use oxc_ast::ast::*;
 use oxc_span::Span;
 
 use super::{ClassMatch, PatternType, QuoteStyle};
