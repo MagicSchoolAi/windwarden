@@ -1,8 +1,10 @@
 # WindWarden
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 > **A blazing fast CLI tool for sorting Tailwind CSS classes**
 
-WindWarden automatically sorts Tailwind CSS classes according to the official recommended order. Built in Rust for maximum performance, it uses AST parsing to handle complex patterns like JSX attributes, utility functions (`cn()`, `clsx()`), template literals, and arrays.
+WindWarden automatically sorts Tailwind CSS classes according to the official recommended order. Built in Rust for maximum performance, it uses AST parsing to handle complex patterns like JSX attributes, utility functions (`cva()`, `clsx()`), template literals, and arrays.
 
 ## ✨ Features
 
@@ -17,15 +19,9 @@ WindWarden automatically sorts Tailwind CSS classes according to the official re
 
 ### Installation
 
-```bash
-# Download from GitHub releases
-curl -L https://github.com/benduggan/windwarden/releases/latest/download/windwarden-linux-x86_64 -o windwarden
-chmod +x windwarden
-sudo mv windwarden /usr/local/bin/
+#### From GitHub Releases (Recommended)
 
-# Or build from source
-cargo install --git https://github.com/benduggan/windwarden
-```
+Download pre-built binaries for your platform
 
 ### Basic Usage
 
@@ -36,7 +32,7 @@ windwarden format --mode write src/
 # Check if files need formatting (CI/CD)
 windwarden check src/
 
-# Preview changes without writing  
+# Preview changes without writing
 windwarden format --mode check src/
 
 # Process from stdin
@@ -125,13 +121,65 @@ windwarden format --mode verify src/
 - `1` - Files need formatting (when using `check` command)
 - `2` - Error occurred during processing
 
+## 🛠️ Development
+
+### Prerequisites
+
+WindWarden uses [Nix](https://nixos.org/) for development environment management:
+
+```bash
+# Enter the development environment
+nix-shell
+
+# Or with direnv (recommended)
+direnv allow
+```
+
+### Building
+
+```bash
+# Development build
+cargo build
+
+# Release build
+cargo build --release
+
+# Run tests
+cargo test
+
+# Run benchmarks
+cargo bench
+
+# Format code
+cargo fmt
+
+# Lint code
+cargo clippy
+```
+
+### Performance Testing
+
+```bash
+# Run performance benchmarks
+cargo bench --bench performance
+
+# Compare optimization strategies
+cargo bench --bench optimization_comparison
+```
+
 ## 🤝 Contributing
 
-Contributions are welcome! Please see our [development docs](docs/) for technical details.
+We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+
+Before submitting a PR:
+1. Run `cargo fmt` to format code
+2. Run `cargo clippy` to check for issues
+3. Run `cargo test` to ensure tests pass
+4. Add tests for new features
 
 ## 📄 License
 
-MIT License - see LICENSE file for details.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ---
 

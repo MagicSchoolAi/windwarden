@@ -1,0 +1,96 @@
+name: Bug Report
+description: Report a bug or issue with WindWarden
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug! Please fill out the information below to help us reproduce and fix the issue.
+
+  - type: input
+    id: version
+    attributes:
+      label: WindWarden Version
+      description: What version of WindWarden are you using?
+      placeholder: "0.5.5"
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Bug Description
+      description: A clear and concise description of what the bug is.
+      placeholder: "Describe what happened and what you expected instead..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to Reproduce
+      description: Steps to reproduce the behavior
+      placeholder: |
+        1. Run command '...'
+        2. Process file with content '...'
+        3. See error
+    validations:
+      required: true
+
+  - type: textarea
+    id: input
+    attributes:
+      label: Input Code
+      description: The code that WindWarden processed (if applicable)
+      render: javascript
+      placeholder: |
+        <div className="p-4 bg-red-500 flex">
+          <span className="font-bold">Example</span>
+        </div>
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Output
+      description: What you expected to happen
+      render: javascript
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual Output
+      description: What actually happened
+      render: javascript
+
+  - type: input
+    id: command
+    attributes:
+      label: Command Used
+      description: The exact WindWarden command you ran
+      placeholder: "windwarden format --mode write src/"
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating System
+      options:
+        - Linux
+        - macOS
+        - Windows
+        - Other (please specify in additional context)
+    validations:
+      required: true
+
+  - type: textarea
+    id: config
+    attributes:
+      label: Configuration
+      description: Your WindWarden configuration file (if any)
+      render: json
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional Context
+      description: Any other context about the problem (error messages, stack traces, etc.)
