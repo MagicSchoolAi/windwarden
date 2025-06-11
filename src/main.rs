@@ -6,7 +6,7 @@ use windwarden::cli::{Cli, Commands, ConfigAction, OperationMode, ProcessingMode
 use windwarden::config::ConfigManager;
 use windwarden::file_processor::{FileDiscovery, FileDiscoveryConfig, FileProcessingPipeline};
 use windwarden::output::{OutputFormatter, ProgressReporter, ProgressTracker};
-use windwarden::{process_stdin, ProcessOptions, WindWardenError};
+use windwarden::{ProcessOptions, WindWardenError, process_stdin};
 
 #[derive(Debug, Clone)]
 struct CommandOptions {

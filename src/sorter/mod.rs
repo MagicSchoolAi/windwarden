@@ -157,7 +157,7 @@ impl TailwindSorter {
                     || base_class.starts_with("pl-")
                     || base_class.starts_with("pr-") =>
                 {
-                    return "spacing"
+                    return "spacing";
                 }
                 'm' if base_class.starts_with("m-")
                     || base_class.starts_with("mx-")
@@ -167,7 +167,7 @@ impl TailwindSorter {
                     || base_class.starts_with("ml-")
                     || base_class.starts_with("mr-") =>
                 {
-                    return "spacing"
+                    return "spacing";
                 }
                 'w' if base_class.starts_with("w-") => return "sizing",
                 'h' if base_class.starts_with("h-") => return "sizing",

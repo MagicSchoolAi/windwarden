@@ -165,41 +165,68 @@ impl WindWardenError {
     pub fn user_message(&self) -> String {
         match self {
             Self::FileNotFound { path } => {
-                format!("❌ File not found: {}\n\n💡 Suggestions:\n   • Check that the file path is correct\n   • Ensure the file exists\n   • Try using an absolute path", path)
+                format!(
+                    "❌ File not found: {}\n\n💡 Suggestions:\n   • Check that the file path is correct\n   • Ensure the file exists\n   • Try using an absolute path",
+                    path
+                )
             }
             Self::PermissionDenied { path } => {
-                format!("❌ Permission denied: {}\n\n💡 Suggestions:\n   • Check file permissions with 'ls -la {}'\n   • Run with appropriate privileges (sudo)\n   • Ensure you have write access to the directory", path, path)
+                format!(
+                    "❌ Permission denied: {}\n\n💡 Suggestions:\n   • Check file permissions with 'ls -la {}'\n   • Run with appropriate privileges (sudo)\n   • Ensure you have write access to the directory",
+                    path, path
+                )
             }
             Self::ParseError {
                 file,
                 line,
                 message,
             } => {
-                format!("❌ Parse error in {} at line {}: {}\n\n💡 Suggestions:\n   • Check the syntax around line {}\n   • Ensure proper quote matching\n   • Verify JSX/TSX syntax is valid", file, line, message, line)
+                format!(
+                    "❌ Parse error in {} at line {}: {}\n\n💡 Suggestions:\n   • Check the syntax around line {}\n   • Ensure proper quote matching\n   • Verify JSX/TSX syntax is valid",
+                    file, line, message, line
+                )
             }
             Self::UnsupportedFileType {
                 extension,
                 supported,
             } => {
-                format!("❌ Unsupported file type: .{}\n   Supported extensions: {}\n\n💡 Suggestions:\n   • Use --extensions {} to include this file type\n   • Add extension to .windwarden.json configuration\n   • Check if the file is actually a supported format", extension, supported, extension)
+                format!(
+                    "❌ Unsupported file type: .{}\n   Supported extensions: {}\n\n💡 Suggestions:\n   • Use --extensions {} to include this file type\n   • Add extension to .windwarden.json configuration\n   • Check if the file is actually a supported format",
+                    extension, supported, extension
+                )
             }
             Self::Config { message } => {
-                format!("❌ Configuration error: {}\n\n💡 Suggestions:\n   • Run 'windwarden config validate' to check your config\n   • Use 'windwarden config init' to create a default config\n   • Check command line arguments syntax", message)
+                format!(
+                    "❌ Configuration error: {}\n\n💡 Suggestions:\n   • Run 'windwarden config validate' to check your config\n   • Use 'windwarden config init' to create a default config\n   • Check command line arguments syntax",
+                    message
+                )
             }
             Self::ThreadPool { message } => {
-                format!("❌ Threading error: {}\n\n💡 Suggestions:\n   • Try --processing sequential for single-threaded processing\n   • Reduce thread count with --threads 1\n   • Check system resource availability", message)
+                format!(
+                    "❌ Threading error: {}\n\n💡 Suggestions:\n   • Try --processing sequential for single-threaded processing\n   • Reduce thread count with --threads 1\n   • Check system resource availability",
+                    message
+                )
             }
             Self::GlobPattern { pattern, message } => {
-                format!("❌ Invalid glob pattern '{}': {}\n\n💡 Suggestions:\n   • Check glob syntax (use * for wildcards, ** for recursive)\n   • Escape special characters if needed\n   • Examples: 'src/**/*.tsx', '*.{{js,ts}}'", pattern, message)
+                format!(
+                    "❌ Invalid glob pattern '{}': {}\n\n💡 Suggestions:\n   • Check glob syntax (use * for wildcards, ** for recursive)\n   • Escape special characters if needed\n   • Examples: 'src/**/*.tsx', '*.{{js,ts}}'",
+                    pattern, message
+                )
             }
             Self::BatchProcessing {
                 file_count,
                 summary,
             } => {
-                format!("❌ Processing failed for {} files: {}\n\n💡 Suggestions:\n   • Check individual file errors above\n   • Try processing files one by one to isolate issues\n   • Use --stats to see detailed information", file_count, summary)
+                format!(
+                    "❌ Processing failed for {} files: {}\n\n💡 Suggestions:\n   • Check individual file errors above\n   • Try processing files one by one to isolate issues\n   • Use --stats to see detailed information",
+                    file_count, summary
+                )
             }
             Self::InvalidUtf8 { path } => {
-                format!("❌ Invalid UTF-8 encoding in file: {}\n\n💡 Suggestions:\n   • Check file encoding and convert to UTF-8\n   • Use a text editor to fix encoding issues\n   • Skip this file with --exclude pattern", path)
+                format!(
+                    "❌ Invalid UTF-8 encoding in file: {}\n\n💡 Suggestions:\n   • Check file encoding and convert to UTF-8\n   • Use a text editor to fix encoding issues\n   • Skip this file with --exclude pattern",
+                    path
+                )
             }
             _ => format!("❌ Error: {}\n\n💡 For help, run: windwarden --help", self),
         }
