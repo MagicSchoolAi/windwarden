@@ -1,8 +1,8 @@
 { pkgs ? import
     (fetchTarball {
-      name = "jpetrucciani-2025-06-07";
-      url = "https://github.com/jpetrucciani/nix/archive/2211ccdc90d9009b93198888a675cb8b97eeadb0.tar.gz";
-      sha256 = "0sg7sc2a13wgjf3wwshypjpmm61vs2gczn9kcc21n0gqqbpd4g0c";
+      name = "MagicSchoolAi-2025-09-01";
+      url = "https://github.com/MagicSchoolAi/nix-ops/archive/b6fd14a095311ca241f71ae0331e8f495e6964e5.tar.gz";
+      sha256 = "0jxd668fa85gbygxjslp8ak5qg5dxjfzxl0333vynzdvamb6447z";
     })
     { }
 }:
@@ -37,5 +37,5 @@ let
 in
 (env.overrideAttrs (_: {
   inherit name;
-  NIXUP = "0.0.9";
+  NIXUP = "0.0.10";
 })) // { inherit scripts; }
